@@ -8,6 +8,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"time"
 )
 
 const createUser = `-- name: CreateUser :many
@@ -20,12 +21,12 @@ RETURNING id
 `
 
 type CreateUserParams struct {
-	Name      string
-	Username  string
-	Email     string
-	Password  string
-	Otp       sql.NullString
-	OtpExpiry sql.NullTime
+	Name      string        `json:"name"`
+	Username  string        `json:"username"`
+	Email     string        `json:"email"`
+	Password  string        `json:"password"`
+	Otp       sql.NullInt32 `json:"otp"`
+	OtpExpiry sql.NullTime  `json:"otp_expiry"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) ([]int32, error) {
@@ -59,15 +60,17 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) ([]int32
 }
 
 const findUserByEmail = `-- name: FindUserByEmail :many
-SELECT id, is_email_verified, username 
+SELECT id, is_email_verified, username,otp , otp_expiry 
 FROM users 
 WHERE email = $1
 `
 
 type FindUserByEmailRow struct {
-	ID              int32
-	IsEmailVerified bool
-	Username        string
+	ID              int32         `json:"id"`
+	IsEmailVerified bool          `json:"is_email_verified"`
+	Username        string        `json:"username"`
+	Otp             sql.NullInt32 `json:"otp"`
+	OtpExpiry       sql.NullTime  `json:"otp_expiry"`
 }
 
 func (q *Queries) FindUserByEmail(ctx context.Context, email string) ([]FindUserByEmailRow, error) {
@@ -79,7 +82,13 @@ func (q *Queries) FindUserByEmail(ctx context.Context, email string) ([]FindUser
 	var items []FindUserByEmailRow
 	for rows.Next() {
 		var i FindUserByEmailRow
-		if err := rows.Scan(&i.ID, &i.IsEmailVerified, &i.Username); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.IsEmailVerified,
+			&i.Username,
+			&i.Otp,
+			&i.OtpExpiry,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -100,9 +109,9 @@ WHERE username = $1
 `
 
 type FindUserByUsernameRow struct {
-	ID              int32
-	IsEmailVerified bool
-	Username        string
+	ID              int32  `json:"id"`
+	IsEmailVerified bool   `json:"is_email_verified"`
+	Username        string `json:"username"`
 }
 
 func (q *Queries) FindUserByUsername(ctx context.Context, username string) ([]FindUserByUsernameRow, error) {
@@ -128,6 +137,97 @@ func (q *Queries) FindUserByUsername(ctx context.Context, username string) ([]Fi
 	return items, nil
 }
 
+const getUserById = `-- name: GetUserById :many
+SELECT id, name, username, email, is_email_verified, created_at, updated_at
+FROM users
+WHERE id = $1
+`
+
+type GetUserByIdRow struct {
+	ID              int32     `json:"id"`
+	Name            string    `json:"name"`
+	Username        string    `json:"username"`
+	Email           string    `json:"email"`
+	IsEmailVerified bool      `json:"is_email_verified"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+}
+
+func (q *Queries) GetUserById(ctx context.Context, id int32) ([]GetUserByIdRow, error) {
+	rows, err := q.db.QueryContext(ctx, getUserById, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetUserByIdRow
+	for rows.Next() {
+		var i GetUserByIdRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Username,
+			&i.Email,
+			&i.IsEmailVerified,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const loginQuery = `-- name: LoginQuery :many
+SELECT id, password, email, is_email_verified, username
+FROM users
+WHERE email = $1
+OR username = $1
+`
+
+type LoginQueryRow struct {
+	ID              int32  `json:"id"`
+	Password        string `json:"password"`
+	Email           string `json:"email"`
+	IsEmailVerified bool   `json:"is_email_verified"`
+	Username        string `json:"username"`
+}
+
+func (q *Queries) LoginQuery(ctx context.Context, email string) ([]LoginQueryRow, error) {
+	rows, err := q.db.QueryContext(ctx, loginQuery, email)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []LoginQueryRow
+	for rows.Next() {
+		var i LoginQueryRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Password,
+			&i.Email,
+			&i.IsEmailVerified,
+			&i.Username,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateUser = `-- name: UpdateUser :many
 UPDATE users 
 SET name = $2, username = $3, email = $4, password = $5, otp = $6, otp_expiry = $7
@@ -136,13 +236,13 @@ RETURNING id
 `
 
 type UpdateUserParams struct {
-	ID        int32
-	Name      string
-	Username  string
-	Email     string
-	Password  string
-	Otp       sql.NullString
-	OtpExpiry sql.NullTime
+	ID        int32         `json:"id"`
+	Name      string        `json:"name"`
+	Username  string        `json:"username"`
+	Email     string        `json:"email"`
+	Password  string        `json:"password"`
+	Otp       sql.NullInt32 `json:"otp"`
+	OtpExpiry sql.NullTime  `json:"otp_expiry"`
 }
 
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) ([]int32, error) {
@@ -152,6 +252,48 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) ([]int32
 		arg.Username,
 		arg.Email,
 		arg.Password,
+		arg.Otp,
+		arg.OtpExpiry,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int32
+	for rows.Next() {
+		var id int32
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const verifyUser = `-- name: VerifyUser :many
+UPDATE users 
+SET is_email_verified = $2, otp = $3, otp_expiry = $4
+WHERE id = $1
+RETURNING id
+`
+
+type VerifyUserParams struct {
+	ID              int32         `json:"id"`
+	IsEmailVerified bool          `json:"is_email_verified"`
+	Otp             sql.NullInt32 `json:"otp"`
+	OtpExpiry       sql.NullTime  `json:"otp_expiry"`
+}
+
+func (q *Queries) VerifyUser(ctx context.Context, arg VerifyUserParams) ([]int32, error) {
+	rows, err := q.db.QueryContext(ctx, verifyUser,
+		arg.ID,
+		arg.IsEmailVerified,
 		arg.Otp,
 		arg.OtpExpiry,
 	)

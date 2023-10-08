@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"net/http"
 	"os"
 
 	"example.com/go-htmx/routes"
@@ -18,6 +20,25 @@ func main() {
 		AllowAllOrigins: true,
 		AllowMethods:    []string{"GET", "POST", "PUT", "PATH", "DELETE", "OPTIONS"},
 	}))
+
+	r.Use(gin.CustomRecovery(func(c *gin.Context, err any) {
+		fmt.Println(err) // TODO: report err
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Internal Server Error",
+		})
+	}))
+
+	r.NoRoute(func(c *gin.Context) {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": fmt.Sprintf("'%s' path not found", c.Request.URL.Path),
+		})
+	})
+
+	r.NoMethod(func(c *gin.Context) {
+		c.JSON(http.StatusMethodNotAllowed, gin.H{
+			"message": fmt.Sprintf("'%s' method not allowed", c.Request.Method),
+		})
+	})
 
 	routes.ApiRouter(r)
 

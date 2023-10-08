@@ -4,7 +4,7 @@ CREATE TABLE users (
     name TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     is_email_verified BOOLEAN DEFAULT FALSE NOT NULL,
-    otp VARCHAR(6),
+    otp INT,
     otp_expiry TIMESTAMP,
     password TEXT NOT NULL,
     username TEXT UNIQUE NOT NULL,

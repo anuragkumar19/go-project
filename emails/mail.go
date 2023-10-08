@@ -1,47 +1,28 @@
 package emails
 
 import (
-	"bytes"
 	"fmt"
-	"net/smtp"
 	"os"
-	"text/template"
+	"strconv"
+
+	"gopkg.in/gomail.v2"
 )
 
+var host = os.Getenv("SMTP_HOST")
+var port, _ = strconv.Atoi(os.Getenv("SMTP_PORT"))
+var from = os.Getenv("EMAIL")
+var password = os.Getenv("EMAIL_PASSWORD")
+
+var d = gomail.NewDialer(host, port, from, password)
+
 func SendOTP(OTP int, email string) error {
+	m := gomail.NewMessage()
+	m.SetHeader("From", from)
+	m.SetHeader("To", email)
+	m.SetHeader("Subject", "Your OTP")
+	m.SetBody("text/html", fmt.Sprintf("Your OTP is %v", OTP))
 
-	from := os.Getenv("EMAIL")
-	password := os.Getenv("EMAIL_PASSWORD")
-	smtpHost := os.Getenv("SMTP_HOST")
-	smtpPort := os.Getenv("SMTP_PORT")
-
-	to := []string{
-		email,
-	}
-
-	auth := smtp.PlainAuth("", from, password, smtpHost)
-
-	t, err := template.ParseFiles("emails/otp.html")
-
-	if err != nil {
-		return err
-	}
-
-	var body bytes.Buffer
-
-	mimeHeaders := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
-	body.Write([]byte(fmt.Sprintf("Subject: This is a test subject \n%s\n\n", mimeHeaders)))
-
-	t.Execute(&body, struct {
-		OTP int
-	}{
-		OTP: OTP,
-	})
-
-	// Sending email.
-	err = smtp.SendMail(smtpHost+":"+smtpPort, auth, from, to, body.Bytes())
-
-	if err != nil {
+	if err := d.DialAndSend(m); err != nil {
 		return err
 	}
 

@@ -10,14 +10,14 @@ import (
 )
 
 type User struct {
-	ID              int32
-	Name            string
-	Email           string
-	IsEmailVerified bool
-	Otp             sql.NullString
-	OtpExpiry       sql.NullTime
-	Password        string
-	Username        string
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	ID              int32         `json:"id"`
+	Name            string        `json:"name"`
+	Email           string        `json:"email"`
+	IsEmailVerified bool          `json:"is_email_verified"`
+	Otp             sql.NullInt32 `json:"otp"`
+	OtpExpiry       sql.NullTime  `json:"otp_expiry"`
+	Password        string        `json:"password"`
+	Username        string        `json:"username"`
+	CreatedAt       time.Time     `json:"created_at"`
+	UpdatedAt       time.Time     `json:"updated_at"`
 }
