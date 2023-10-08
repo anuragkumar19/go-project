@@ -137,6 +137,42 @@ func (q *Queries) FindUserByUsername(ctx context.Context, username string) ([]Fi
 	return items, nil
 }
 
+const forgotPassword = `-- name: ForgotPassword :many
+UPDATE users 
+SET otp = $2, otp_expiry = $3
+WHERE id = $1
+RETURNING id
+`
+
+type ForgotPasswordParams struct {
+	ID        int32         `json:"id"`
+	Otp       sql.NullInt32 `json:"otp"`
+	OtpExpiry sql.NullTime  `json:"otp_expiry"`
+}
+
+func (q *Queries) ForgotPassword(ctx context.Context, arg ForgotPasswordParams) ([]int32, error) {
+	rows, err := q.db.QueryContext(ctx, forgotPassword, arg.ID, arg.Otp, arg.OtpExpiry)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int32
+	for rows.Next() {
+		var id int32
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getUserById = `-- name: GetUserById :many
 SELECT id, name, username, email, is_email_verified, created_at, updated_at
 FROM users
@@ -228,6 +264,96 @@ func (q *Queries) LoginQuery(ctx context.Context, email string) ([]LoginQueryRow
 	return items, nil
 }
 
+const resetPassword = `-- name: ResetPassword :many
+UPDATE users 
+SET password = $2, otp = $3, otp_expiry = $4
+WHERE id = $1
+RETURNING id
+`
+
+type ResetPasswordParams struct {
+	ID        int32         `json:"id"`
+	Password  string        `json:"password"`
+	Otp       sql.NullInt32 `json:"otp"`
+	OtpExpiry sql.NullTime  `json:"otp_expiry"`
+}
+
+func (q *Queries) ResetPassword(ctx context.Context, arg ResetPasswordParams) ([]int32, error) {
+	rows, err := q.db.QueryContext(ctx, resetPassword,
+		arg.ID,
+		arg.Password,
+		arg.Otp,
+		arg.OtpExpiry,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int32
+	for rows.Next() {
+		var id int32
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateAvatar = `-- name: UpdateAvatar :exec
+UPDATE users 
+SET avatar = $2
+WHERE id = $1
+`
+
+type UpdateAvatarParams struct {
+	ID     int32  `json:"id"`
+	Avatar string `json:"avatar"`
+}
+
+func (q *Queries) UpdateAvatar(ctx context.Context, arg UpdateAvatarParams) error {
+	_, err := q.db.ExecContext(ctx, updateAvatar, arg.ID, arg.Avatar)
+	return err
+}
+
+const updateName = `-- name: UpdateName :exec
+UPDATE users 
+SET name = $2
+WHERE id = $1
+`
+
+type UpdateNameParams struct {
+	ID   int32  `json:"id"`
+	Name string `json:"name"`
+}
+
+func (q *Queries) UpdateName(ctx context.Context, arg UpdateNameParams) error {
+	_, err := q.db.ExecContext(ctx, updateName, arg.ID, arg.Name)
+	return err
+}
+
+const updatePassword = `-- name: UpdatePassword :exec
+UPDATE users 
+SET password = $2
+WHERE id = $1
+`
+
+type UpdatePasswordParams struct {
+	ID       int32  `json:"id"`
+	Password string `json:"password"`
+}
+
+func (q *Queries) UpdatePassword(ctx context.Context, arg UpdatePasswordParams) error {
+	_, err := q.db.ExecContext(ctx, updatePassword, arg.ID, arg.Password)
+	return err
+}
+
 const updateUser = `-- name: UpdateUser :many
 UPDATE users 
 SET name = $2, username = $3, email = $4, password = $5, otp = $6, otp_expiry = $7
@@ -274,6 +400,22 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) ([]int32
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateUsername = `-- name: UpdateUsername :exec
+UPDATE users 
+SET username = $2
+WHERE id = $1
+`
+
+type UpdateUsernameParams struct {
+	ID       int32  `json:"id"`
+	Username string `json:"username"`
+}
+
+func (q *Queries) UpdateUsername(ctx context.Context, arg UpdateUsernameParams) error {
+	_, err := q.db.ExecContext(ctx, updateUsername, arg.ID, arg.Username)
+	return err
 }
 
 const verifyUser = `-- name: VerifyUser :many

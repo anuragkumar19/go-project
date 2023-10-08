@@ -13,6 +13,40 @@ WHERE id = $1
 RETURNING id
 ;
 
+-- name: ForgotPassword :many
+UPDATE users 
+SET otp = $2, otp_expiry = $3
+WHERE id = $1
+RETURNING id
+;
+
+-- name: ResetPassword :many
+UPDATE users 
+SET password = $2, otp = $3, otp_expiry = $4
+WHERE id = $1
+RETURNING id
+;
+
+-- name: UpdateName :exec
+UPDATE users 
+SET name = $2
+WHERE id = $1;
+
+-- name: UpdateUsername :exec
+UPDATE users 
+SET username = $2
+WHERE id = $1;
+
+-- name: UpdatePassword :exec
+UPDATE users 
+SET password = $2
+WHERE id = $1;
+
+-- name: UpdateAvatar :exec
+UPDATE users 
+SET avatar = $2
+WHERE id = $1;
+
 -- name: VerifyUser :many
 UPDATE users 
 SET is_email_verified = $2, otp = $3, otp_expiry = $4

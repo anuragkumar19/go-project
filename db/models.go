@@ -9,10 +9,36 @@ import (
 	"time"
 )
 
+type Post struct {
+	ID          int32     `json:"id"`
+	Title       string    `json:"title"`
+	Text        string    `json:"text"`
+	Image       string    `json:"image"`
+	Video       string    `json:"video"`
+	Link        string    `json:"link"`
+	SubredditID int32     `json:"subreddit_id"`
+	CreatorID   int32     `json:"creator_id"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type Subreddit struct {
+	ID         int32     `json:"id"`
+	Title      string    `json:"title"`
+	IsVerified bool      `json:"is_verified"`
+	Name       string    `json:"name"`
+	Avatar     string    `json:"avatar"`
+	Cover      string    `json:"cover"`
+	CreatorID  int32     `json:"creator_id"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
 type User struct {
 	ID              int32         `json:"id"`
 	Name            string        `json:"name"`
 	Email           string        `json:"email"`
+	Avatar          string        `json:"avatar"`
 	IsEmailVerified bool          `json:"is_email_verified"`
 	Otp             sql.NullInt32 `json:"otp"`
 	OtpExpiry       sql.NullTime  `json:"otp_expiry"`

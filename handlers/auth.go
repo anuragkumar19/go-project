@@ -232,3 +232,135 @@ func Login(c *gin.Context) {
 		"token": token,
 	})
 }
+
+func ForgotPassword(c *gin.Context) {
+	body := &validations.ForgotPasswordParameters{}
+
+	if valid := validations.Validate(c, body); !valid {
+		return
+	}
+
+	users, err := db.FindUserByEmail(context.Background(), body.Email)
+
+	if err != nil {
+		panic(err)
+	}
+
+	if len(users) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "User does not exist with the provided email",
+		})
+		return
+	}
+
+	user := users[0]
+
+	if !user.IsEmailVerified {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "User does not exist with the provided email",
+		})
+		return
+	}
+
+	otp := rand.Intn(899_999) + 100_000
+	otpExpiry := time.Now().Add(time.Minute * 5)
+
+	_, err = db.ForgotPassword(context.Background(), database.ForgotPasswordParams{
+		ID: user.ID,
+		Otp: sql.NullInt32{
+			Valid: true,
+			Int32: int32(otp),
+		},
+		OtpExpiry: sql.NullTime{
+			Valid: true,
+			Time:  otpExpiry,
+		},
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "OTP sent. Now you can reset your password",
+	})
+}
+
+func ResetPassword(c *gin.Context) {
+	body := &validations.ResetPasswordParameters{}
+
+	if valid := validations.Validate(c, body); !valid {
+		return
+	}
+
+	users, err := db.FindUserByEmail(context.Background(), body.Email)
+
+	if err != nil {
+		panic(err)
+	}
+
+	if len(users) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "User does not exist with the provided email",
+		})
+		return
+	}
+
+	user := users[0]
+
+	if !user.IsEmailVerified {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "User does not exist with the provided email",
+		})
+		return
+	}
+
+	if !user.Otp.Valid || !user.OtpExpiry.Valid {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "OTP expired",
+		})
+		return
+	}
+
+	if user.OtpExpiry.Time.Before(time.Now()) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "OTP expired",
+		})
+		return
+	}
+
+	if user.Otp.Int32 != int32(body.OTP) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "OTP did not match",
+		})
+		return
+	}
+
+	passwordHash, err := utils.HashPassword(body.Password)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "Password too long",
+		})
+		return
+	}
+
+	_, err = db.ResetPassword(context.Background(), database.ResetPasswordParams{
+		ID:       user.ID,
+		Password: passwordHash,
+		Otp: sql.NullInt32{
+			Valid: false,
+		},
+		OtpExpiry: sql.NullTime{
+			Valid: false,
+		},
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":"Password Updated",
+	})
+}
