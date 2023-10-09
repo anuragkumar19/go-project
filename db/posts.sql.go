@@ -92,31 +92,31 @@ func (q *Queries) FindPostById(ctx context.Context, id int32) ([]FindPostByIdRow
 	return items, nil
 }
 
-const getVote = `-- name: GetVote :many
+const getPostVote = `-- name: GetPostVote :many
 SELECT post_id, user_id, down FROM vote_post
 WHERE post_id = $1 AND user_id = $2
 `
 
-type GetVoteParams struct {
+type GetPostVoteParams struct {
 	PostID int32 `json:"post_id"`
 	UserID int32 `json:"user_id"`
 }
 
-type GetVoteRow struct {
+type GetPostVoteRow struct {
 	PostID int32 `json:"post_id"`
 	UserID int32 `json:"user_id"`
 	Down   bool  `json:"down"`
 }
 
-func (q *Queries) GetVote(ctx context.Context, arg GetVoteParams) ([]GetVoteRow, error) {
-	rows, err := q.db.QueryContext(ctx, getVote, arg.PostID, arg.UserID)
+func (q *Queries) GetPostVote(ctx context.Context, arg GetPostVoteParams) ([]GetPostVoteRow, error) {
+	rows, err := q.db.QueryContext(ctx, getPostVote, arg.PostID, arg.UserID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetVoteRow
+	var items []GetPostVoteRow
 	for rows.Next() {
-		var i GetVoteRow
+		var i GetPostVoteRow
 		if err := rows.Scan(&i.PostID, &i.UserID, &i.Down); err != nil {
 			return nil, err
 		}
@@ -131,18 +131,18 @@ func (q *Queries) GetVote(ctx context.Context, arg GetVoteParams) ([]GetVoteRow,
 	return items, nil
 }
 
-const removeVote = `-- name: RemoveVote :exec
+const removePostVote = `-- name: RemovePostVote :exec
 DELETE FROM vote_post
 WHERE vote_post.post_id = $1 AND vote_post.user_id = $2
 `
 
-type RemoveVoteParams struct {
+type RemovePostVoteParams struct {
 	PostID int32 `json:"post_id"`
 	UserID int32 `json:"user_id"`
 }
 
-func (q *Queries) RemoveVote(ctx context.Context, arg RemoveVoteParams) error {
-	_, err := q.db.ExecContext(ctx, removeVote, arg.PostID, arg.UserID)
+func (q *Queries) RemovePostVote(ctx context.Context, arg RemovePostVoteParams) error {
+	_, err := q.db.ExecContext(ctx, removePostVote, arg.PostID, arg.UserID)
 	return err
 }
 

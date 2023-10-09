@@ -10,4 +10,6 @@ func ApiRouter(r *gin.Engine) {
 	authRouter(api)
 	userRouter(api)
 	subredditRouter(api)
+	postRouter(api)
+	repliesRouter(api)
 }

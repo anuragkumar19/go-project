@@ -15,4 +15,8 @@ func subredditRouter(r *gin.RouterGroup) {
 	subreddit.PUT("/:id/cover", middlewares.WithAuthGuard(handlers.UpdateSubredditCover))
 	subreddit.POST("/:id/join", middlewares.WithAuthGuard(handlers.JoinSubreddit))
 	subreddit.POST("/:id/leave", middlewares.WithAuthGuard(handlers.LeaveSubreddit))
+	subreddit.POST("/:id/posts/text", middlewares.WithAuthGuard(handlers.CreatePostWithText))
+	subreddit.POST("/:id/posts/image", middlewares.WithAuthGuard(handlers.CreatePostWithImage))
+	subreddit.POST("/:id/posts/video", middlewares.WithAuthGuard(handlers.CreatePostWithVideo))
+	subreddit.POST("/:id/posts/link", middlewares.WithAuthGuard(handlers.CreatePostWithLink))
 }

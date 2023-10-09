@@ -170,14 +170,14 @@ func VotePost(user *database.GetUserByIdRow, c *gin.Context) {
 	})
 }
 
-func RemoveVote(user *database.GetUserByIdRow, c *gin.Context) {
+func RemovePostVote(user *database.GetUserByIdRow, c *gin.Context) {
 	post, ok := verifyPostCreator(user, c, false)
 
 	if !ok {
 		return
 	}
 
-	items, err := db.GetVote(context.Background(), database.GetVoteParams{
+	items, err := db.GetPostVote(context.Background(), database.GetPostVoteParams{
 		PostID: post.ID,
 		UserID: user.ID,
 	})
@@ -192,7 +192,7 @@ func RemoveVote(user *database.GetUserByIdRow, c *gin.Context) {
 		})
 	}
 
-	err = db.RemoveVote(context.Background(), database.RemoveVoteParams{
+	err = db.RemovePostVote(context.Background(), database.RemovePostVoteParams{
 		PostID: post.ID,
 		UserID: user.ID,
 	})

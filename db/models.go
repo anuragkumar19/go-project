@@ -24,8 +24,8 @@ type Post struct {
 
 type Reply struct {
 	ID            int32         `json:"id"`
-	UserID        int32         `json:"user_id"`
-	PostID        int32         `json:"post_id"`
+	CreatorID     int32         `json:"creator_id"`
+	PostID        sql.NullInt32 `json:"post_id"`
 	ParentReplyID sql.NullInt32 `json:"parent_reply_id"`
 	Content       string        `json:"content"`
 	CreatedAt     sql.NullTime  `json:"created_at"`
@@ -68,4 +68,10 @@ type VotePost struct {
 	UserID int32 `json:"user_id"`
 	PostID int32 `json:"post_id"`
 	Down   bool  `json:"down"`
+}
+
+type VoteReply struct {
+	UserID  int32 `json:"user_id"`
+	ReplyID int32 `json:"reply_id"`
+	Down    bool  `json:"down"`
 }

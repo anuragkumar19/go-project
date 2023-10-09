@@ -12,11 +12,11 @@ ON CONFLICT
 DO UPDATE SET down = $3
 WHERE vote_post.post_id = $1 AND vote_post.user_id = $2;
 
--- name: GetVote :many
+-- name: GetPostVote :many
 SELECT post_id, user_id, down FROM vote_post
 WHERE post_id = $1 AND user_id = $2;
 
--- name: RemoveVote :exec
+-- name: RemovePostVote :exec
 DELETE FROM vote_post
 WHERE vote_post.post_id = $1 AND vote_post.user_id = $2;
 
