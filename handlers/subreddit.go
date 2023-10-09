@@ -18,7 +18,7 @@ func CreateSubreddit(user *database.GetUserByIdRow, c *gin.Context) {
 		return
 	}
 
-	items, err := db.FindSubreddit(context.Background(), body.Name)
+	items, err := db.FindSubredditByName(context.Background(), body.Name)
 
 	if err != nil {
 		panic(err)
@@ -52,46 +52,13 @@ func UpdateSubredditTitle(user *database.GetUserByIdRow, c *gin.Context) {
 		return
 	}
 
-	s, ok := c.Params.Get("id")
+	subreddit, ok := verifySubredditCreator(user, c, true)
 
 	if !ok {
-		c.JSON(http.StatusNotFound, gin.H{
-			"message": "Subreddit not found",
-		})
 		return
 	}
 
-	id, err := strconv.Atoi(s)
-
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"message": "Subreddit not found",
-		})
-		return
-	}
-
-	items, err := db.FindSubredditById(context.Background(), int32(id))
-
-	if err != nil {
-		panic(err)
-	}
-
-	if len(items) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{
-			"message": "Subreddit not found",
-		})
-		return
-	}
-
-	subreddit := items[0]
-	if subreddit.CreatorID != user.ID {
-		c.JSON(http.StatusNotFound, gin.H{
-			"message": "Subreddit not found",
-		})
-		return
-	}
-
-	err = db.UpdateSubredditTitle(context.Background(), database.UpdateSubredditTitleParams{
+	err := db.UpdateSubredditTitle(context.Background(), database.UpdateSubredditTitleParams{
 		ID:    subreddit.ID,
 		Title: body.Title,
 	})
@@ -105,43 +72,37 @@ func UpdateSubredditTitle(user *database.GetUserByIdRow, c *gin.Context) {
 	})
 }
 
-func UpdateSubredditAvatar(user *database.GetUserByIdRow, c *gin.Context) {
-	s, ok := c.Params.Get("id")
+func UpdateSubredditAbout(user *database.GetUserByIdRow, c *gin.Context) {
+	body := &validations.UpdateSubredditAboutParameters{}
+
+	if valid := validations.Validate(c, body); !valid {
+		return
+	}
+
+	subreddit, ok := verifySubredditCreator(user, c, true)
 
 	if !ok {
-		c.JSON(http.StatusNotFound, gin.H{
-			"message": "Subreddit not found",
-		})
 		return
 	}
 
-	id, err := strconv.Atoi(s)
-
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"message": "Subreddit not found",
-		})
-		return
-	}
-
-	items, err := db.FindSubredditById(context.Background(), int32(id))
+	err := db.UpdateSubredditAbout(context.Background(), database.UpdateSubredditAboutParams{
+		ID:    subreddit.ID,
+		About: body.About,
+	})
 
 	if err != nil {
 		panic(err)
 	}
 
-	if len(items) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{
-			"message": "Subreddit not found",
-		})
-		return
-	}
+	c.JSON(http.StatusOK, gin.H{
+		"message": "About updated",
+	})
+}
 
-	subreddit := items[0]
-	if subreddit.CreatorID != user.ID {
-		c.JSON(http.StatusNotFound, gin.H{
-			"message": "Subreddit not found",
-		})
+func UpdateSubredditAvatar(user *database.GetUserByIdRow, c *gin.Context) {
+	subreddit, ok := verifySubredditCreator(user, c, true)
+
+	if !ok {
 		return
 	}
 
@@ -151,7 +112,7 @@ func UpdateSubredditAvatar(user *database.GetUserByIdRow, c *gin.Context) {
 		return
 	}
 
-	err = db.UpdateSubredditAvatar(context.Background(), database.UpdateSubredditAvatarParams{
+	err := db.UpdateSubredditAvatar(context.Background(), database.UpdateSubredditAvatarParams{
 		ID:     subreddit.ID,
 		Avatar: path,
 	})
@@ -163,18 +124,43 @@ func UpdateSubredditAvatar(user *database.GetUserByIdRow, c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Avatar updated",
 	})
-
 }
 
-// TODO: REFACTOR UPLOAD IN ANOTHER FUNCTION
 func UpdateSubredditCover(user *database.GetUserByIdRow, c *gin.Context) {
+	subreddit, ok := verifySubredditCreator(user, c, true)
+
+	if !ok {
+		return
+	}
+
+	path, ok := utils.UploadFile(c, "image")
+
+	if !ok {
+		return
+	}
+
+	err := db.UpdateSubredditCover(context.Background(), database.UpdateSubredditCoverParams{
+		ID:    subreddit.ID,
+		Cover: path,
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Cover updated",
+	})
+}
+
+func verifySubredditCreator(user *database.GetUserByIdRow, c *gin.Context, checkCreator bool) (*database.FindSubredditByIdRow, bool) {
 	s, ok := c.Params.Get("id")
 
 	if !ok {
 		c.JSON(http.StatusNotFound, gin.H{
 			"message": "Subreddit not found",
 		})
-		return
+		return nil, false
 	}
 
 	id, err := strconv.Atoi(s)
@@ -183,7 +169,7 @@ func UpdateSubredditCover(user *database.GetUserByIdRow, c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{
 			"message": "Subreddit not found",
 		})
-		return
+		return nil, false
 	}
 
 	items, err := db.FindSubredditById(context.Background(), int32(id))
@@ -196,26 +182,46 @@ func UpdateSubredditCover(user *database.GetUserByIdRow, c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{
 			"message": "Subreddit not found",
 		})
-		return
+		return nil, false
 	}
 
 	subreddit := items[0]
-	if subreddit.CreatorID != user.ID {
+	if checkCreator && subreddit.CreatorID != user.ID {
 		c.JSON(http.StatusNotFound, gin.H{
 			"message": "Subreddit not found",
 		})
-		return
+		return nil, false
 	}
 
-	path, ok := utils.UploadFile(c, "image")
+	return &subreddit, true
+}
+
+func JoinSubreddit(user *database.GetUserByIdRow, c *gin.Context) {
+	subreddit, ok := verifySubredditCreator(user, c, false)
 
 	if !ok {
 		return
 	}
 
-	err = db.UpdateSubredditCover(context.Background(), database.UpdateSubredditCoverParams{
-		ID:    subreddit.ID,
-		Cover: path,
+	items, err := db.IsAlreadyJoined(context.Background(), database.IsAlreadyJoinedParams{
+		UserID:      user.ID,
+		SubredditID: subreddit.ID,
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	if len(items) > 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "Already Joined",
+		})
+		return
+	}
+
+	_, err = db.JoinSubreddit(context.Background(), database.JoinSubredditParams{
+		UserID:      user.ID,
+		SubredditID: subreddit.ID,
 	})
 
 	if err != nil {
@@ -223,7 +229,43 @@ func UpdateSubredditCover(user *database.GetUserByIdRow, c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Cover updated",
+		"message": "Joined",
+	})
+}
+
+func LeaveSubreddit(user *database.GetUserByIdRow, c *gin.Context) {
+	subreddit, ok := verifySubredditCreator(user, c, false)
+
+	if !ok {
+		return
+	}
+
+	items, err := db.IsAlreadyJoined(context.Background(), database.IsAlreadyJoinedParams{
+		UserID:      user.ID,
+		SubredditID: subreddit.ID,
 	})
 
+	if err != nil {
+		panic(err)
+	}
+
+	if len(items) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "You need to join first",
+		})
+		return
+	}
+
+	err = db.LeaveSubreddit(context.Background(), database.LeaveSubredditParams{
+		UserID:      user.ID,
+		SubredditID: subreddit.ID,
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Left",
+	})
 }

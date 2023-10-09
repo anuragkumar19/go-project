@@ -51,34 +51,6 @@ func (q *Queries) CreateSubreddit(ctx context.Context, arg CreateSubredditParams
 	return items, nil
 }
 
-const findSubreddit = `-- name: FindSubreddit :many
-SELECT id FROM subreddit
-WHERE name = $1
-`
-
-func (q *Queries) FindSubreddit(ctx context.Context, name string) ([]int32, error) {
-	rows, err := q.db.QueryContext(ctx, findSubreddit, name)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []int32
-	for rows.Next() {
-		var id int32
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		items = append(items, id)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const findSubredditById = `-- name: FindSubredditById :many
 SELECT id, creator_id FROM subreddit
 WHERE id = $1
@@ -110,6 +82,132 @@ func (q *Queries) FindSubredditById(ctx context.Context, id int32) ([]FindSubred
 		return nil, err
 	}
 	return items, nil
+}
+
+const findSubredditByName = `-- name: FindSubredditByName :many
+SELECT id FROM subreddit
+WHERE name = $1
+`
+
+func (q *Queries) FindSubredditByName(ctx context.Context, name string) ([]int32, error) {
+	rows, err := q.db.QueryContext(ctx, findSubredditByName, name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int32
+	for rows.Next() {
+		var id int32
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const isAlreadyJoined = `-- name: IsAlreadyJoined :many
+SELECT user_id, subreddit_id FROM user_subreddit_join 
+WHERE user_id = $1 AND subreddit_id = $2
+`
+
+type IsAlreadyJoinedParams struct {
+	UserID      int32 `json:"user_id"`
+	SubredditID int32 `json:"subreddit_id"`
+}
+
+func (q *Queries) IsAlreadyJoined(ctx context.Context, arg IsAlreadyJoinedParams) ([]UserSubredditJoin, error) {
+	rows, err := q.db.QueryContext(ctx, isAlreadyJoined, arg.UserID, arg.SubredditID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []UserSubredditJoin
+	for rows.Next() {
+		var i UserSubredditJoin
+		if err := rows.Scan(&i.UserID, &i.SubredditID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const joinSubreddit = `-- name: JoinSubreddit :many
+INSERT INTO user_subreddit_join (user_id, subreddit_id)
+VALUES ($1, $2) 
+RETURNING user_id,subreddit_id
+`
+
+type JoinSubredditParams struct {
+	UserID      int32 `json:"user_id"`
+	SubredditID int32 `json:"subreddit_id"`
+}
+
+func (q *Queries) JoinSubreddit(ctx context.Context, arg JoinSubredditParams) ([]UserSubredditJoin, error) {
+	rows, err := q.db.QueryContext(ctx, joinSubreddit, arg.UserID, arg.SubredditID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []UserSubredditJoin
+	for rows.Next() {
+		var i UserSubredditJoin
+		if err := rows.Scan(&i.UserID, &i.SubredditID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const leaveSubreddit = `-- name: LeaveSubreddit :exec
+DELETE FROM user_subreddit_join 
+WHERE user_id = $1 AND subreddit_id = $2
+`
+
+type LeaveSubredditParams struct {
+	UserID      int32 `json:"user_id"`
+	SubredditID int32 `json:"subreddit_id"`
+}
+
+func (q *Queries) LeaveSubreddit(ctx context.Context, arg LeaveSubredditParams) error {
+	_, err := q.db.ExecContext(ctx, leaveSubreddit, arg.UserID, arg.SubredditID)
+	return err
+}
+
+const updateSubredditAbout = `-- name: UpdateSubredditAbout :exec
+UPDATE subreddit 
+SET about = $2
+WHERE id = $1
+`
+
+type UpdateSubredditAboutParams struct {
+	ID    int32  `json:"id"`
+	About string `json:"about"`
+}
+
+func (q *Queries) UpdateSubredditAbout(ctx context.Context, arg UpdateSubredditAboutParams) error {
+	_, err := q.db.ExecContext(ctx, updateSubredditAbout, arg.ID, arg.About)
+	return err
 }
 
 const updateSubredditAvatar = `-- name: UpdateSubredditAvatar :exec

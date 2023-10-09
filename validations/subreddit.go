@@ -7,3 +7,7 @@ type CreateSubredditParameters struct {
 type UpdateSubredditTitleParameters struct {
 	Title string `json:"title" validate:"max=30" mod:"trim"`
 }
+
+type UpdateSubredditAboutParameters struct {
+	About string `json:"about" validate:"max=500" mod:"trim"`
+}

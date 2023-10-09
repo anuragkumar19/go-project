@@ -4,6 +4,7 @@ CREATE TABLE subreddit (
     title TEXT DEFAULT '' NOT NULL,
     is_verified BOOLEAN DEFAULT FALSE NOT NULL,
     name TEXT UNIQUE NOT NULL,
+    about TEXT DEFAULT '' NOT NULL,
     avatar TEXT DEFAULT 'https://api.dicebear.com/7.x/bottts/png' NOT NULL,
     cover TEXT DEFAULT '' NOT NULL,
     creator_id INT NOT NULL,

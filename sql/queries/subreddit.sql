@@ -5,7 +5,7 @@ INSERT INTO subreddit (
     $1, $2, $3
 ) RETURNING id, name;
 
--- name: FindSubreddit :many
+-- name: FindSubredditByName :many
 SELECT id FROM subreddit
 WHERE name = $1;
 
@@ -16,6 +16,11 @@ WHERE id = $1;
 -- name: UpdateSubredditTitle :exec
 UPDATE subreddit 
 SET title = $2
+WHERE id = $1;
+
+-- name: UpdateSubredditAbout :exec
+UPDATE subreddit 
+SET about = $2
 WHERE id = $1;
 
 -- name: UpdateSubredditAvatar :exec
@@ -32,4 +37,16 @@ WHERE id = $1;
 UPDATE subreddit 
 SET name = $2
 WHERE id = $1;
+ 
+-- name: IsAlreadyJoined :many
+SELECT user_id, subreddit_id FROM user_subreddit_join 
+WHERE user_id = $1 AND subreddit_id = $2;
 
+-- name: JoinSubreddit :many
+INSERT INTO user_subreddit_join (user_id, subreddit_id)
+VALUES ($1, $2) 
+RETURNING user_id,subreddit_id;
+
+-- name: LeaveSubreddit :exec
+DELETE FROM user_subreddit_join 
+WHERE user_id = $1 AND subreddit_id = $2;
