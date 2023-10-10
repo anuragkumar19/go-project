@@ -8,6 +8,8 @@ package database
 import (
 	"context"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 const createPost = `-- name: CreatePost :many
@@ -59,6 +61,15 @@ func (q *Queries) CreatePost(ctx context.Context, arg CreatePostParams) ([]int32
 	return items, nil
 }
 
+const deletePost = `-- name: DeletePost :exec
+DELETE FROM posts WHERE id = $1
+`
+
+func (q *Queries) DeletePost(ctx context.Context, id int32) error {
+	_, err := q.db.ExecContext(ctx, deletePost, id)
+	return err
+}
+
 const findPostById = `-- name: FindPostById :many
 SELECT id, creator_id, subreddit_id FROM posts
 WHERE id = $1
@@ -80,6 +91,146 @@ func (q *Queries) FindPostById(ctx context.Context, id int32) ([]FindPostByIdRow
 	for rows.Next() {
 		var i FindPostByIdRow
 		if err := rows.Scan(&i.ID, &i.CreatorID, &i.SubredditID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getFeedPosts = `-- name: GetFeedPosts :many
+SELECT
+    posts.id,
+    posts.title,
+    posts.text,
+    posts.image,
+    posts.video,
+    posts.link,
+    posts.subreddit_id,
+    posts.creator_id,
+    posts.created_at,
+    users.username AS creator_username,
+    users.avatar AS creator_avatar,
+    users.name AS creator_name,
+    subreddit.name AS subreddit_name,
+    subreddit.avatar AS subreddit_avatar,
+    subreddit.is_verified AS subreddit_is_verified,
+    subreddit.title AS subreddit_title,
+    COALESCE(replies.replies_count, 0) AS replies_count,
+    COALESCE(up_votes.up_vote_count, 0) AS up_vote_count,
+    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count,
+    COALESCE(user_votes.vote, 0) AS vote
+FROM
+    posts
+JOIN
+    users ON posts.creator_id = users.id
+JOIN
+    subreddit ON posts.subreddit_id = subreddit.id
+LEFT JOIN (
+    SELECT post_id, COUNT(id) AS replies_count
+    FROM replies
+    GROUP BY post_id
+) AS replies ON posts.id = replies.post_id
+LEFT JOIN (
+    SELECT post_id, COUNT(user_id) AS up_vote_count
+    FROM vote_post
+    WHERE down = FALSE
+    GROUP BY post_id
+) AS up_votes ON posts.id = up_votes.post_id
+LEFT JOIN (
+    SELECT post_id, COUNT(user_id) AS down_vote_count
+    FROM vote_post
+    WHERE down = TRUE
+    GROUP BY post_id
+) AS down_votes ON posts.id = down_votes.post_id
+LEFT JOIN (
+    SELECT post_id, MAX(CASE WHEN vp.user_id = $4 AND vp.down = FALSE THEN 1 WHEN vp.user_id = $4 AND vp.down = TRUE THEN -1 ELSE 0 END) AS vote
+    FROM vote_post AS vp
+    WHERE vp.user_id = $4
+    GROUP BY vp.post_id
+) AS user_votes ON posts.id = user_votes.post_id
+WHERE
+    posts.subreddit_id = ANY($1::int[])
+ORDER BY
+    posts.created_at DESC
+LIMIT
+    $2
+OFFSET
+    $3
+`
+
+type GetFeedPostsParams struct {
+	Column1 []int32 `json:"column_1"`
+	Limit   int32   `json:"limit"`
+	Offset  int32   `json:"offset"`
+	UserID  int32   `json:"user_id"`
+}
+
+type GetFeedPostsRow struct {
+	ID                  int32       `json:"id"`
+	Title               string      `json:"title"`
+	Text                string      `json:"text"`
+	Image               string      `json:"image"`
+	Video               string      `json:"video"`
+	Link                string      `json:"link"`
+	SubredditID         int32       `json:"subreddit_id"`
+	CreatorID           int32       `json:"creator_id"`
+	CreatedAt           time.Time   `json:"created_at"`
+	CreatorUsername     string      `json:"creator_username"`
+	CreatorAvatar       string      `json:"creator_avatar"`
+	CreatorName         string      `json:"creator_name"`
+	SubredditName       string      `json:"subreddit_name"`
+	SubredditAvatar     string      `json:"subreddit_avatar"`
+	SubredditIsVerified bool        `json:"subreddit_is_verified"`
+	SubredditTitle      string      `json:"subreddit_title"`
+	RepliesCount        int64       `json:"replies_count"`
+	UpVoteCount         int64       `json:"up_vote_count"`
+	DownVoteCount       int64       `json:"down_vote_count"`
+	Vote                interface{} `json:"vote"`
+}
+
+func (q *Queries) GetFeedPosts(ctx context.Context, arg GetFeedPostsParams) ([]GetFeedPostsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getFeedPosts,
+		pq.Array(arg.Column1),
+		arg.Limit,
+		arg.Offset,
+		arg.UserID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetFeedPostsRow
+	for rows.Next() {
+		var i GetFeedPostsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Text,
+			&i.Image,
+			&i.Video,
+			&i.Link,
+			&i.SubredditID,
+			&i.CreatorID,
+			&i.CreatedAt,
+			&i.CreatorUsername,
+			&i.CreatorAvatar,
+			&i.CreatorName,
+			&i.SubredditName,
+			&i.SubredditAvatar,
+			&i.SubredditIsVerified,
+			&i.SubredditTitle,
+			&i.RepliesCount,
+			&i.UpVoteCount,
+			&i.DownVoteCount,
+			&i.Vote,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

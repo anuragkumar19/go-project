@@ -316,7 +316,21 @@ func RemovePostVote(user *database.GetUserByIdRow, c *gin.Context) {
 }
 
 func DeletePost(user *database.GetUserByIdRow, c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"message": "Not implemented"})
+	post, ok := verifyPostCreator(user, c, true)
+
+	if !ok {
+		return
+	}
+
+	err := db.DeletePost(context.Background(), post.ID)
+
+	if err != nil {
+		panic(err)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Post removed",
+	})
 }
 
 func verifyPostCreator(user *database.GetUserByIdRow, c *gin.Context, checkCreator bool) (*database.FindPostByIdRow, bool) {

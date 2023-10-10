@@ -52,6 +52,15 @@ func (q *Queries) CreateSubreddit(ctx context.Context, arg CreateSubredditParams
 	return items, nil
 }
 
+const deleteSubreddit = `-- name: DeleteSubreddit :exec
+DELETE FROM subreddit WHERE id = $1
+`
+
+func (q *Queries) DeleteSubreddit(ctx context.Context, id int32) error {
+	_, err := q.db.ExecContext(ctx, deleteSubreddit, id)
+	return err
+}
+
 const findSubredditByIDPublic = `-- name: FindSubredditByIDPublic :many
 SELECT
     subreddit.id,
@@ -267,6 +276,34 @@ func (q *Queries) FindSubredditByNamePublic(ctx context.Context, arg FindSubredd
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getJoinedSubreddit = `-- name: GetJoinedSubreddit :many
+SELECT subreddit_id FROM user_subreddit_join 
+WHERE user_id = $1
+`
+
+func (q *Queries) GetJoinedSubreddit(ctx context.Context, userID int32) ([]int32, error) {
+	rows, err := q.db.QueryContext(ctx, getJoinedSubreddit, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int32
+	for rows.Next() {
+		var subreddit_id int32
+		if err := rows.Scan(&subreddit_id); err != nil {
+			return nil, err
+		}
+		items = append(items, subreddit_id)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err

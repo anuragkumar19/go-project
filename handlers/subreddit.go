@@ -456,5 +456,19 @@ func LeaveSubreddit(user *database.GetUserByIdRow, c *gin.Context) {
 }
 
 func DeleteSubreddit(user *database.GetUserByIdRow, c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"message": "Not implemented"})
+	subreddit, ok := verifySubredditCreator(user, c, true)
+
+	if !ok {
+		return
+	}
+
+	err := db.DeleteSubreddit(context.Background(), subreddit.ID)
+
+	if err != nil {
+		panic(err)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Subreddit removed",
+	})
 }

@@ -134,3 +134,10 @@ LIMIT
     $2
 OFFSET
     $3;
+
+-- name: DeleteSubreddit :exec
+DELETE FROM subreddit WHERE id = $1;
+
+-- name: GetJoinedSubreddit :many
+SELECT subreddit_id FROM user_subreddit_join 
+WHERE user_id = $1;

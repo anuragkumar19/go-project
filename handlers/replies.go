@@ -251,9 +251,22 @@ func RemoveReplyVote(user *database.GetUserByIdRow, c *gin.Context) {
 	})
 }
 
-// TODO:...
 func DeleteReply(user *database.GetUserByIdRow, c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"message": "Not implemented"})
+	reply, ok := verifyReplyCreator(user, c, true)
+
+	if !ok {
+		return
+	}
+
+	err := db.DeleteReply(context.Background(), reply.ID)
+
+	if err != nil {
+		panic(err)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Reply removed",
+	})
 }
 
 func verifyReplyCreator(user *database.GetUserByIdRow, c *gin.Context, checkCreator bool) (*database.FindReplyByIdRow, bool) {
