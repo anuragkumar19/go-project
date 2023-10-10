@@ -44,7 +44,8 @@ SELECT
     subreddit.title AS subreddit_title,
     COALESCE(replies.replies_count, 0) AS replies_count,
     COALESCE(up_votes.up_vote_count, 0) AS up_vote_count,
-    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count
+    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count,
+    COALESCE(user_votes.vote, 0) AS vote
 FROM
     posts
 JOIN
@@ -68,6 +69,12 @@ LEFT JOIN (
     WHERE down = TRUE
     GROUP BY post_id
 ) AS down_votes ON posts.id = down_votes.post_id
+LEFT JOIN (
+    SELECT post_id, MAX(CASE WHEN vp.user_id = $2 AND vp.down = FALSE THEN 1 WHEN vp.user_id = $2 AND vp.down = TRUE THEN -1 ELSE 0 END) AS vote
+    FROM vote_post AS vp
+    WHERE vp.user_id = $2
+    GROUP BY vp.post_id
+) AS user_votes ON posts.id = user_votes.post_id
 WHERE
     posts.id = $1;
 
@@ -94,7 +101,8 @@ SELECT
     subreddit.title AS subreddit_title,
     COALESCE(replies.replies_count, 0) AS replies_count,
     COALESCE(up_votes.up_vote_count, 0) AS up_vote_count,
-    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count
+    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count,
+    COALESCE(user_votes.vote, 0) AS vote
 FROM
     posts
 JOIN
@@ -118,6 +126,12 @@ LEFT JOIN (
     WHERE down = TRUE
     GROUP BY post_id
 ) AS down_votes ON posts.id = down_votes.post_id
+LEFT JOIN (
+    SELECT post_id, MAX(CASE WHEN vp.user_id = $4 AND vp.down = FALSE THEN 1 WHEN vp.user_id = $4 AND vp.down = TRUE THEN -1 ELSE 0 END) AS vote
+    FROM vote_post AS vp
+    WHERE vp.user_id = $4
+    GROUP BY vp.post_id
+) AS user_votes ON posts.id = user_votes.post_id
 WHERE
     posts.creator_id = $1
 ORDER BY
@@ -147,7 +161,8 @@ SELECT
     subreddit.title AS subreddit_title,
     COALESCE(replies.replies_count, 0) AS replies_count,
     COALESCE(up_votes.up_vote_count, 0) AS up_vote_count,
-    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count
+    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count,
+    COALESCE(user_votes.vote, 0) AS vote
 FROM
     posts
 JOIN
@@ -171,6 +186,12 @@ LEFT JOIN (
     WHERE down = TRUE
     GROUP BY post_id
 ) AS down_votes ON posts.id = down_votes.post_id
+LEFT JOIN (
+    SELECT post_id, MAX(CASE WHEN vp.user_id = $4 AND vp.down = FALSE THEN 1 WHEN vp.user_id = $4 AND vp.down = TRUE THEN -1 ELSE 0 END) AS vote
+    FROM vote_post AS vp
+    WHERE vp.user_id = $4
+    GROUP BY vp.post_id
+) AS user_votes ON posts.id = user_votes.post_id
 WHERE
     posts.subreddit_id = $1
 ORDER BY

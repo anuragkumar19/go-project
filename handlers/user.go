@@ -4,8 +4,10 @@ import (
 	"context"
 	"net/http"
 	"strconv"
+	"strings"
 
 	database "example.com/go-htmx/db"
+	"example.com/go-htmx/middlewares"
 	"example.com/go-htmx/utils"
 	"example.com/go-htmx/validations"
 	"github.com/gin-gonic/gin"
@@ -83,7 +85,7 @@ func GetUserByUsername(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"user": user})
 }
 
-func GetUserPosts(c *gin.Context) {
+func GetUserPosts(user middlewares.MaybeUser, c *gin.Context) {
 	str, ok := c.Params.Get("id")
 
 	if !ok {
@@ -115,14 +117,28 @@ func GetUserPosts(c *gin.Context) {
 		page = 1
 	}
 
+	var userId int32
+
+	if user.User != nil {
+		userId = user.User.ID
+	}
+
 	posts, err := db.GetPostsOfUser(context.Background(), database.GetPostsOfUserParams{
 		CreatorID: int32(id),
 		Limit:     int32(limit),
 		Offset:    (int32(page) - 1) * int32(limit),
+		UserID:    userId,
 	})
 
 	if err != nil {
 		panic(err)
+	}
+
+	if len(posts) == 0 {
+		c.JSON(http.StatusOK, gin.H{
+			"posts": []string{},
+		})
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -130,7 +146,7 @@ func GetUserPosts(c *gin.Context) {
 	})
 }
 
-func GetUserReplies(c *gin.Context) {
+func GetUserReplies(user middlewares.MaybeUser, c *gin.Context) {
 	str, ok := c.Params.Get("id")
 
 	if !ok {
@@ -162,14 +178,28 @@ func GetUserReplies(c *gin.Context) {
 		page = 1
 	}
 
+	var userId int32
+
+	if user.User != nil {
+		userId = user.User.ID
+	}
+
 	replies, err := db.GetUserReplyPublic(context.Background(), database.GetUserReplyPublicParams{
 		CreatorID: int32(id),
 		Limit:     int32(limit),
 		Offset:    (int32(page) - 1) * int32(limit),
+		UserID:    userId,
 	})
 
 	if err != nil {
 		panic(err)
+	}
+
+	if len(replies) == 0 {
+		c.JSON(http.StatusOK, gin.H{
+			"replies": []string{},
+		})
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -178,7 +208,46 @@ func GetUserReplies(c *gin.Context) {
 }
 
 func SearchUser(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"message": "Not implemented"})
+	q := c.Query("q")
+
+	if q == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"items": []string{},
+		})
+		return
+	}
+
+	limit, _ := strconv.Atoi(c.Query("limit"))
+	page, _ := strconv.Atoi(c.Query("page"))
+
+	if limit == 0 {
+		limit = 10
+	}
+
+	if page == 0 {
+		page = 1
+	}
+
+	users, err := db.SearchUserPublic(context.Background(), database.SearchUserPublicParams{
+		Username: "%" + strings.ToLower(q) + "%",
+		Limit:    int32(limit),
+		Offset:   (int32(page) - 1) * int32(limit),
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	if len(users) == 0 {
+		c.JSON(http.StatusOK, gin.H{
+			"users": []string{},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"users": users,
+	})
 }
 
 func UpdateName(user *database.GetUserByIdRow, c *gin.Context) {
@@ -290,5 +359,4 @@ func UpdateAvatar(user *database.GetUserByIdRow, c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Uploaded",
 	})
-
 }

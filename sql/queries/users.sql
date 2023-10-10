@@ -85,7 +85,7 @@ WHERE id = $1 AND is_email_verified = true;
 
 -- name: SearchUserPublic :many
 SELECT id, name, username, avatar FROM users 
-WHERE is_email_verified = true AND (username LIKE $1 OR name LIKE $1)
+WHERE is_email_verified = true AND (LOWER(username) LIKE $1 OR LOWER(name) LIKE $1)
 ORDER BY created_at DESC
 LIMIT $2
 OFFSET $3;

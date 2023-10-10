@@ -62,7 +62,11 @@ SELECT
     subreddit.is_verified,
     subreddit.created_at,
     subreddit.creator_id,
-    COALESCE(member.member_count, 0) AS member_count
+    COALESCE(member.member_count, 0) AS member_count,
+    CASE
+        WHEN usj.user_id IS NOT NULL THEN true
+        ELSE false
+    END AS is_joined
 FROM
     subreddit
 LEFT JOIN (
@@ -70,6 +74,7 @@ LEFT JOIN (
     FROM user_subreddit_join
     GROUP BY subreddit_id
 ) AS member ON subreddit.id = member.subreddit_id
+LEFT JOIN user_subreddit_join AS usj ON subreddit.id = usj.subreddit_id AND usj.user_id = $2
 WHERE
     subreddit.id = $1;
 
@@ -84,7 +89,11 @@ SELECT
     subreddit.is_verified,
     subreddit.created_at,
     subreddit.creator_id,
-    COALESCE(member.member_count, 0) AS member_count
+    COALESCE(member.member_count, 0) AS member_count,
+    CASE
+        WHEN usj.user_id IS NOT NULL THEN true
+        ELSE false
+    END AS is_joined
 FROM
     subreddit
 LEFT JOIN (
@@ -92,6 +101,7 @@ LEFT JOIN (
     FROM user_subreddit_join
     GROUP BY subreddit_id
 ) AS member ON subreddit.id = member.subreddit_id
+LEFT JOIN user_subreddit_join AS usj ON subreddit.id = usj.subreddit_id AND usj.user_id = $2
 WHERE
     subreddit.name = $1;
 
@@ -103,7 +113,11 @@ SELECT
     subreddit.title,
     subreddit.avatar,
     subreddit.is_verified,
-    COALESCE(member.member_count, 0) AS member_count
+    COALESCE(member.member_count, 0) AS member_count,
+    CASE
+        WHEN usj.user_id IS NOT NULL THEN true
+        ELSE false
+    END AS is_joined
 FROM
     subreddit
 LEFT JOIN (
@@ -111,8 +125,9 @@ LEFT JOIN (
     FROM user_subreddit_join
     GROUP BY subreddit_id
 ) AS member ON subreddit.id = member.subreddit_id
+LEFT JOIN user_subreddit_join AS usj ON subreddit.id = usj.subreddit_id AND usj.user_id = $4
 WHERE
-    subreddit.name LIKE $1 OR subreddit.title LIKE $1 OR subreddit.about LIKE $1
+    LOWER(subreddit.name) LIKE $1 OR LOWER(subreddit.title) LIKE $1 OR LOWER(subreddit.about) LIKE $1
 ORDER BY
     subreddit.created_at DESC
 LIMIT

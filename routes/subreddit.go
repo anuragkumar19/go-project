@@ -9,13 +9,13 @@ import (
 func subredditRouter(r *gin.RouterGroup) {
 	subreddit := r.Group("/r")
 
-	subreddit.GET("/search", handlers.SearchSubreddit)
-	subreddit.GET("/name/:name", handlers.GetSubredditByName)
+	subreddit.GET("/search", middlewares.WithMaybeUser(handlers.SearchSubreddit))
+	subreddit.GET("/name/:name", middlewares.WithMaybeUser(handlers.GetSubredditByName))
 
 	subreddit.POST("/", middlewares.WithAuthGuard(handlers.CreateSubreddit))
 
-	subreddit.GET("/:id", handlers.GetSubredditByID)
-	subreddit.GET("/:id/posts", handlers.GetSubredditPosts)
+	subreddit.GET("/:id", middlewares.WithMaybeUser(handlers.GetSubredditByID))
+	subreddit.GET("/:id/posts", middlewares.WithMaybeUser(handlers.GetSubredditPosts))
 
 	subreddit.PUT("/:id/title", middlewares.WithAuthGuard(handlers.UpdateSubredditTitle))
 	subreddit.PUT("/:id/avatar", middlewares.WithAuthGuard(handlers.UpdateSubredditAvatar))

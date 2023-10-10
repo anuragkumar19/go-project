@@ -113,7 +113,8 @@ SELECT
     users.name AS creator_name,
     COALESCE(r.replies_count, 0) AS replies_count,
     COALESCE(up_votes.up_vote_count, 0) AS up_vote_count,
-    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count
+    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count,
+    COALESCE(user_votes.vote, 0) AS vote
 FROM
     replies
 JOIN
@@ -135,6 +136,12 @@ LEFT JOIN (
     WHERE down = TRUE
     GROUP BY reply_id
 ) AS down_votes ON replies.id = down_votes.reply_id
+LEFT JOIN (
+    SELECT reply_id, MAX(CASE WHEN vr.user_id = $4 AND vr.down = FALSE THEN 1 WHEN vr.user_id = $4 AND vr.down = TRUE THEN -1 ELSE 0 END) AS vote
+    FROM vote_reply AS vr
+    WHERE vr.user_id = $4
+    GROUP BY vr.reply_id
+) AS user_votes ON replies.id = user_votes.reply_id
 WHERE
     replies.post_id = $1
 ORDER BY
@@ -149,6 +156,7 @@ type GetPostReplyPublicParams struct {
 	PostID sql.NullInt32 `json:"post_id"`
 	Limit  int32         `json:"limit"`
 	Offset int32         `json:"offset"`
+	UserID int32         `json:"user_id"`
 }
 
 type GetPostReplyPublicRow struct {
@@ -164,10 +172,16 @@ type GetPostReplyPublicRow struct {
 	RepliesCount    int64         `json:"replies_count"`
 	UpVoteCount     int64         `json:"up_vote_count"`
 	DownVoteCount   int64         `json:"down_vote_count"`
+	Vote            interface{}   `json:"vote"`
 }
 
 func (q *Queries) GetPostReplyPublic(ctx context.Context, arg GetPostReplyPublicParams) ([]GetPostReplyPublicRow, error) {
-	rows, err := q.db.QueryContext(ctx, getPostReplyPublic, arg.PostID, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, getPostReplyPublic,
+		arg.PostID,
+		arg.Limit,
+		arg.Offset,
+		arg.UserID,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -188,6 +202,7 @@ func (q *Queries) GetPostReplyPublic(ctx context.Context, arg GetPostReplyPublic
 			&i.RepliesCount,
 			&i.UpVoteCount,
 			&i.DownVoteCount,
+			&i.Vote,
 		); err != nil {
 			return nil, err
 		}
@@ -215,7 +230,8 @@ SELECT
     users.name AS creator_name,
     COALESCE(r.replies_count, 0) AS replies_count,
     COALESCE(up_votes.up_vote_count, 0) AS up_vote_count,
-    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count
+    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count,
+    COALESCE(user_votes.vote, 0) AS vote
 FROM
     replies
 JOIN
@@ -237,9 +253,20 @@ LEFT JOIN (
     WHERE down = TRUE
     GROUP BY reply_id
 ) AS down_votes ON replies.id = down_votes.reply_id
+LEFT JOIN (
+    SELECT reply_id, MAX(CASE WHEN vr.user_id = $2 AND vr.down = FALSE THEN 1 WHEN vr.user_id = $2 AND vr.down = TRUE THEN -1 ELSE 0 END) AS vote
+    FROM vote_reply AS vr
+    WHERE vr.user_id = $2
+    GROUP BY vr.reply_id
+) AS user_votes ON replies.id = user_votes.reply_id
 WHERE
     replies.id = $1
 `
+
+type GetReplyByIdPublicParams struct {
+	ID     int32 `json:"id"`
+	UserID int32 `json:"user_id"`
+}
 
 type GetReplyByIdPublicRow struct {
 	ID              int32         `json:"id"`
@@ -254,10 +281,11 @@ type GetReplyByIdPublicRow struct {
 	RepliesCount    int64         `json:"replies_count"`
 	UpVoteCount     int64         `json:"up_vote_count"`
 	DownVoteCount   int64         `json:"down_vote_count"`
+	Vote            interface{}   `json:"vote"`
 }
 
-func (q *Queries) GetReplyByIdPublic(ctx context.Context, id int32) ([]GetReplyByIdPublicRow, error) {
-	rows, err := q.db.QueryContext(ctx, getReplyByIdPublic, id)
+func (q *Queries) GetReplyByIdPublic(ctx context.Context, arg GetReplyByIdPublicParams) ([]GetReplyByIdPublicRow, error) {
+	rows, err := q.db.QueryContext(ctx, getReplyByIdPublic, arg.ID, arg.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -278,6 +306,7 @@ func (q *Queries) GetReplyByIdPublic(ctx context.Context, id int32) ([]GetReplyB
 			&i.RepliesCount,
 			&i.UpVoteCount,
 			&i.DownVoteCount,
+			&i.Vote,
 		); err != nil {
 			return nil, err
 		}
@@ -305,7 +334,8 @@ SELECT
     users.name AS creator_name,
     COALESCE(r.replies_count, 0) AS replies_count,
     COALESCE(up_votes.up_vote_count, 0) AS up_vote_count,
-    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count
+    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count,
+    COALESCE(user_votes.vote, 0) AS vote
 FROM
     replies
 JOIN
@@ -327,6 +357,12 @@ LEFT JOIN (
     WHERE down = TRUE
     GROUP BY reply_id
 ) AS down_votes ON replies.id = down_votes.reply_id
+LEFT JOIN (
+    SELECT reply_id, MAX(CASE WHEN vr.user_id = $4 AND vr.down = FALSE THEN 1 WHEN vr.user_id = $4 AND vr.down = TRUE THEN -1 ELSE 0 END) AS vote
+    FROM vote_reply AS vr
+    WHERE vr.user_id = $4
+    GROUP BY vr.reply_id
+) AS user_votes ON replies.id = user_votes.reply_id
 WHERE
     replies.parent_reply_id = $1
 ORDER BY
@@ -341,6 +377,7 @@ type GetReplyRepliesParams struct {
 	ParentReplyID sql.NullInt32 `json:"parent_reply_id"`
 	Limit         int32         `json:"limit"`
 	Offset        int32         `json:"offset"`
+	UserID        int32         `json:"user_id"`
 }
 
 type GetReplyRepliesRow struct {
@@ -356,10 +393,16 @@ type GetReplyRepliesRow struct {
 	RepliesCount    int64         `json:"replies_count"`
 	UpVoteCount     int64         `json:"up_vote_count"`
 	DownVoteCount   int64         `json:"down_vote_count"`
+	Vote            interface{}   `json:"vote"`
 }
 
 func (q *Queries) GetReplyReplies(ctx context.Context, arg GetReplyRepliesParams) ([]GetReplyRepliesRow, error) {
-	rows, err := q.db.QueryContext(ctx, getReplyReplies, arg.ParentReplyID, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, getReplyReplies,
+		arg.ParentReplyID,
+		arg.Limit,
+		arg.Offset,
+		arg.UserID,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -380,6 +423,7 @@ func (q *Queries) GetReplyReplies(ctx context.Context, arg GetReplyRepliesParams
 			&i.RepliesCount,
 			&i.UpVoteCount,
 			&i.DownVoteCount,
+			&i.Vote,
 		); err != nil {
 			return nil, err
 		}
@@ -446,7 +490,8 @@ SELECT
     users.name AS creator_name,
     COALESCE(r.replies_count, 0) AS replies_count,
     COALESCE(up_votes.up_vote_count, 0) AS up_vote_count,
-    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count
+    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count,
+    COALESCE(user_votes.vote, 0) AS vote
 FROM
     replies
 JOIN
@@ -468,6 +513,12 @@ LEFT JOIN (
     WHERE down = TRUE
     GROUP BY reply_id
 ) AS down_votes ON replies.id = down_votes.reply_id
+LEFT JOIN (
+    SELECT reply_id, MAX(CASE WHEN vr.user_id = $4 AND vr.down = FALSE THEN 1 WHEN vr.user_id = $4 AND vr.down = TRUE THEN -1 ELSE 0 END) AS vote
+    FROM vote_reply AS vr
+    WHERE vr.user_id = $4
+    GROUP BY vr.reply_id
+) AS user_votes ON replies.id = user_votes.reply_id
 WHERE
     replies.creator_id = $1
 ORDER BY
@@ -482,6 +533,7 @@ type GetUserReplyPublicParams struct {
 	CreatorID int32 `json:"creator_id"`
 	Limit     int32 `json:"limit"`
 	Offset    int32 `json:"offset"`
+	UserID    int32 `json:"user_id"`
 }
 
 type GetUserReplyPublicRow struct {
@@ -497,10 +549,16 @@ type GetUserReplyPublicRow struct {
 	RepliesCount    int64         `json:"replies_count"`
 	UpVoteCount     int64         `json:"up_vote_count"`
 	DownVoteCount   int64         `json:"down_vote_count"`
+	Vote            interface{}   `json:"vote"`
 }
 
 func (q *Queries) GetUserReplyPublic(ctx context.Context, arg GetUserReplyPublicParams) ([]GetUserReplyPublicRow, error) {
-	rows, err := q.db.QueryContext(ctx, getUserReplyPublic, arg.CreatorID, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, getUserReplyPublic,
+		arg.CreatorID,
+		arg.Limit,
+		arg.Offset,
+		arg.UserID,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -521,6 +579,7 @@ func (q *Queries) GetUserReplyPublic(ctx context.Context, arg GetUserReplyPublic
 			&i.RepliesCount,
 			&i.UpVoteCount,
 			&i.DownVoteCount,
+			&i.Vote,
 		); err != nil {
 			return nil, err
 		}

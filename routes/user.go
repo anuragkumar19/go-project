@@ -19,6 +19,6 @@ func userRouter(r *gin.RouterGroup) {
 	user.PUT("/avatar", middlewares.WithAuthGuard(handlers.UpdateAvatar))
 
 	user.GET("/:id", handlers.GetUserByID)
-	user.GET("/:id/posts", handlers.GetUserPosts)
-	user.GET("/:id/replies", handlers.GetUserReplies)
+	user.GET("/:id/posts", middlewares.WithMaybeUser(handlers.GetUserPosts))
+	user.GET("/:id/replies", middlewares.WithMaybeUser(handlers.GetUserReplies))
 }

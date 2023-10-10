@@ -4,17 +4,66 @@ import (
 	"context"
 	"net/http"
 	"strconv"
+	"strings"
 
 	database "example.com/go-htmx/db"
+	"example.com/go-htmx/middlewares"
 	"example.com/go-htmx/utils"
 	"example.com/go-htmx/validations"
 	"github.com/gin-gonic/gin"
 )
 
-func SearchSubreddit(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"message": "Not implemented"})
+func SearchSubreddit(user middlewares.MaybeUser, c *gin.Context) {
+	q := c.Query("q")
+
+	if q == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"items": []string{},
+		})
+		return
+	}
+
+	var userId int32
+
+	if user.User != nil {
+		userId = user.User.ID
+	}
+
+	limit, _ := strconv.Atoi(c.Query("limit"))
+	page, _ := strconv.Atoi(c.Query("page"))
+
+	if limit == 0 {
+		limit = 10
+	}
+
+	if page == 0 {
+		page = 1
+	}
+
+	items, err := db.SearchSubredditPublic(context.Background(), database.SearchSubredditPublicParams{
+		Name:   "%" + strings.ToLower(q) + "%",
+		Limit:  int32(limit),
+		Offset: (int32(page) - 1) * int32(limit),
+		UserID: userId,
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	if len(items) == 0 {
+		c.JSON(http.StatusOK, gin.H{
+			"items": []string{},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": items,
+	})
 }
-func GetSubredditByID(c *gin.Context) {
+
+func GetSubredditByID(user middlewares.MaybeUser, c *gin.Context) {
 	str, ok := c.Params.Get("id")
 
 	if !ok {
@@ -33,7 +82,16 @@ func GetSubredditByID(c *gin.Context) {
 		return
 	}
 
-	items, err := db.FindSubredditByIDPublic(context.Background(), int32(id))
+	var userId int32
+
+	if user.User != nil {
+		userId = user.User.ID
+	}
+
+	items, err := db.FindSubredditByIDPublic(context.Background(), database.FindSubredditByIDPublicParams{
+		ID:     int32(id),
+		UserID: userId,
+	})
 
 	if err != nil {
 		panic(err)
@@ -50,7 +108,7 @@ func GetSubredditByID(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"subreddit": subreddit})
 }
 
-func GetSubredditByName(c *gin.Context) {
+func GetSubredditByName(user middlewares.MaybeUser, c *gin.Context) {
 	name, ok := c.Params.Get("name")
 
 	if !ok {
@@ -60,7 +118,16 @@ func GetSubredditByName(c *gin.Context) {
 		return
 	}
 
-	items, err := db.FindSubredditByNamePublic(context.Background(), name)
+	var userId int32
+
+	if user.User != nil {
+		userId = user.User.ID
+	}
+
+	items, err := db.FindSubredditByNamePublic(context.Background(), database.FindSubredditByNamePublicParams{
+		Name:   name,
+		UserID: userId,
+	})
 
 	if err != nil {
 		panic(err)
@@ -76,7 +143,8 @@ func GetSubredditByName(c *gin.Context) {
 	subreddit := items[0]
 	c.JSON(http.StatusOK, gin.H{"subreddit": subreddit})
 }
-func GetSubredditPosts(c *gin.Context) {
+
+func GetSubredditPosts(user middlewares.MaybeUser, c *gin.Context) {
 	str, ok := c.Params.Get("id")
 
 	if !ok {
@@ -106,10 +174,17 @@ func GetSubredditPosts(c *gin.Context) {
 		page = 1
 	}
 
+	var userId int32
+
+	if user.User != nil {
+		userId = user.User.ID
+	}
+
 	posts, err := db.GetSubredditPosts(context.Background(), database.GetSubredditPostsParams{
 		SubredditID: int32(id),
 		Limit:       int32(limit),
 		Offset:      (int32(page) - 1) * int32(limit),
+		UserID:      userId,
 	})
 
 	if err != nil {

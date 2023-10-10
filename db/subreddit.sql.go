@@ -63,7 +63,11 @@ SELECT
     subreddit.is_verified,
     subreddit.created_at,
     subreddit.creator_id,
-    COALESCE(member.member_count, 0) AS member_count
+    COALESCE(member.member_count, 0) AS member_count,
+    CASE
+        WHEN usj.user_id IS NOT NULL THEN true
+        ELSE false
+    END AS is_joined
 FROM
     subreddit
 LEFT JOIN (
@@ -71,9 +75,15 @@ LEFT JOIN (
     FROM user_subreddit_join
     GROUP BY subreddit_id
 ) AS member ON subreddit.id = member.subreddit_id
+LEFT JOIN user_subreddit_join AS usj ON subreddit.id = usj.subreddit_id AND usj.user_id = $2
 WHERE
     subreddit.id = $1
 `
+
+type FindSubredditByIDPublicParams struct {
+	ID     int32 `json:"id"`
+	UserID int32 `json:"user_id"`
+}
 
 type FindSubredditByIDPublicRow struct {
 	ID          int32     `json:"id"`
@@ -86,10 +96,11 @@ type FindSubredditByIDPublicRow struct {
 	CreatedAt   time.Time `json:"created_at"`
 	CreatorID   int32     `json:"creator_id"`
 	MemberCount int64     `json:"member_count"`
+	IsJoined    bool      `json:"is_joined"`
 }
 
-func (q *Queries) FindSubredditByIDPublic(ctx context.Context, id int32) ([]FindSubredditByIDPublicRow, error) {
-	rows, err := q.db.QueryContext(ctx, findSubredditByIDPublic, id)
+func (q *Queries) FindSubredditByIDPublic(ctx context.Context, arg FindSubredditByIDPublicParams) ([]FindSubredditByIDPublicRow, error) {
+	rows, err := q.db.QueryContext(ctx, findSubredditByIDPublic, arg.ID, arg.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -108,6 +119,7 @@ func (q *Queries) FindSubredditByIDPublic(ctx context.Context, id int32) ([]Find
 			&i.CreatedAt,
 			&i.CreatorID,
 			&i.MemberCount,
+			&i.IsJoined,
 		); err != nil {
 			return nil, err
 		}
@@ -194,7 +206,11 @@ SELECT
     subreddit.is_verified,
     subreddit.created_at,
     subreddit.creator_id,
-    COALESCE(member.member_count, 0) AS member_count
+    COALESCE(member.member_count, 0) AS member_count,
+    CASE
+        WHEN usj.user_id IS NOT NULL THEN true
+        ELSE false
+    END AS is_joined
 FROM
     subreddit
 LEFT JOIN (
@@ -202,9 +218,15 @@ LEFT JOIN (
     FROM user_subreddit_join
     GROUP BY subreddit_id
 ) AS member ON subreddit.id = member.subreddit_id
+LEFT JOIN user_subreddit_join AS usj ON subreddit.id = usj.subreddit_id AND usj.user_id = $2
 WHERE
     subreddit.name = $1
 `
+
+type FindSubredditByNamePublicParams struct {
+	Name   string `json:"name"`
+	UserID int32  `json:"user_id"`
+}
 
 type FindSubredditByNamePublicRow struct {
 	ID          int32     `json:"id"`
@@ -217,10 +239,11 @@ type FindSubredditByNamePublicRow struct {
 	CreatedAt   time.Time `json:"created_at"`
 	CreatorID   int32     `json:"creator_id"`
 	MemberCount int64     `json:"member_count"`
+	IsJoined    bool      `json:"is_joined"`
 }
 
-func (q *Queries) FindSubredditByNamePublic(ctx context.Context, name string) ([]FindSubredditByNamePublicRow, error) {
-	rows, err := q.db.QueryContext(ctx, findSubredditByNamePublic, name)
+func (q *Queries) FindSubredditByNamePublic(ctx context.Context, arg FindSubredditByNamePublicParams) ([]FindSubredditByNamePublicRow, error) {
+	rows, err := q.db.QueryContext(ctx, findSubredditByNamePublic, arg.Name, arg.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -239,6 +262,7 @@ func (q *Queries) FindSubredditByNamePublic(ctx context.Context, name string) ([
 			&i.CreatedAt,
 			&i.CreatorID,
 			&i.MemberCount,
+			&i.IsJoined,
 		); err != nil {
 			return nil, err
 		}
@@ -342,7 +366,11 @@ SELECT
     subreddit.title,
     subreddit.avatar,
     subreddit.is_verified,
-    COALESCE(member.member_count, 0) AS member_count
+    COALESCE(member.member_count, 0) AS member_count,
+    CASE
+        WHEN usj.user_id IS NOT NULL THEN true
+        ELSE false
+    END AS is_joined
 FROM
     subreddit
 LEFT JOIN (
@@ -350,8 +378,9 @@ LEFT JOIN (
     FROM user_subreddit_join
     GROUP BY subreddit_id
 ) AS member ON subreddit.id = member.subreddit_id
+LEFT JOIN user_subreddit_join AS usj ON subreddit.id = usj.subreddit_id AND usj.user_id = $4
 WHERE
-    subreddit.name LIKE $1 OR subreddit.title LIKE $1 OR subreddit.about LIKE $1
+    LOWER(subreddit.name) LIKE $1 OR LOWER(subreddit.title) LIKE $1 OR LOWER(subreddit.about) LIKE $1
 ORDER BY
     subreddit.created_at DESC
 LIMIT
@@ -364,6 +393,7 @@ type SearchSubredditPublicParams struct {
 	Name   string `json:"name"`
 	Limit  int32  `json:"limit"`
 	Offset int32  `json:"offset"`
+	UserID int32  `json:"user_id"`
 }
 
 type SearchSubredditPublicRow struct {
@@ -373,10 +403,16 @@ type SearchSubredditPublicRow struct {
 	Avatar      string `json:"avatar"`
 	IsVerified  bool   `json:"is_verified"`
 	MemberCount int64  `json:"member_count"`
+	IsJoined    bool   `json:"is_joined"`
 }
 
 func (q *Queries) SearchSubredditPublic(ctx context.Context, arg SearchSubredditPublicParams) ([]SearchSubredditPublicRow, error) {
-	rows, err := q.db.QueryContext(ctx, searchSubredditPublic, arg.Name, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, searchSubredditPublic,
+		arg.Name,
+		arg.Limit,
+		arg.Offset,
+		arg.UserID,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -391,6 +427,7 @@ func (q *Queries) SearchSubredditPublic(ctx context.Context, arg SearchSubreddit
 			&i.Avatar,
 			&i.IsVerified,
 			&i.MemberCount,
+			&i.IsJoined,
 		); err != nil {
 			return nil, err
 		}

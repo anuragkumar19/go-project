@@ -37,7 +37,8 @@ SELECT
     users.name AS creator_name,
     COALESCE(r.replies_count, 0) AS replies_count,
     COALESCE(up_votes.up_vote_count, 0) AS up_vote_count,
-    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count
+    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count,
+    COALESCE(user_votes.vote, 0) AS vote
 FROM
     replies
 JOIN
@@ -59,6 +60,12 @@ LEFT JOIN (
     WHERE down = TRUE
     GROUP BY reply_id
 ) AS down_votes ON replies.id = down_votes.reply_id
+LEFT JOIN (
+    SELECT reply_id, MAX(CASE WHEN vr.user_id = $2 AND vr.down = FALSE THEN 1 WHEN vr.user_id = $2 AND vr.down = TRUE THEN -1 ELSE 0 END) AS vote
+    FROM vote_reply AS vr
+    WHERE vr.user_id = $2
+    GROUP BY vr.reply_id
+) AS user_votes ON replies.id = user_votes.reply_id
 WHERE
     replies.id = $1;
 
@@ -75,7 +82,8 @@ SELECT
     users.name AS creator_name,
     COALESCE(r.replies_count, 0) AS replies_count,
     COALESCE(up_votes.up_vote_count, 0) AS up_vote_count,
-    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count
+    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count,
+    COALESCE(user_votes.vote, 0) AS vote
 FROM
     replies
 JOIN
@@ -97,6 +105,12 @@ LEFT JOIN (
     WHERE down = TRUE
     GROUP BY reply_id
 ) AS down_votes ON replies.id = down_votes.reply_id
+LEFT JOIN (
+    SELECT reply_id, MAX(CASE WHEN vr.user_id = $4 AND vr.down = FALSE THEN 1 WHEN vr.user_id = $4 AND vr.down = TRUE THEN -1 ELSE 0 END) AS vote
+    FROM vote_reply AS vr
+    WHERE vr.user_id = $4
+    GROUP BY vr.reply_id
+) AS user_votes ON replies.id = user_votes.reply_id
 WHERE
     replies.creator_id = $1
 ORDER BY
@@ -119,7 +133,8 @@ SELECT
     users.name AS creator_name,
     COALESCE(r.replies_count, 0) AS replies_count,
     COALESCE(up_votes.up_vote_count, 0) AS up_vote_count,
-    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count
+    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count,
+    COALESCE(user_votes.vote, 0) AS vote
 FROM
     replies
 JOIN
@@ -141,6 +156,12 @@ LEFT JOIN (
     WHERE down = TRUE
     GROUP BY reply_id
 ) AS down_votes ON replies.id = down_votes.reply_id
+LEFT JOIN (
+    SELECT reply_id, MAX(CASE WHEN vr.user_id = $4 AND vr.down = FALSE THEN 1 WHEN vr.user_id = $4 AND vr.down = TRUE THEN -1 ELSE 0 END) AS vote
+    FROM vote_reply AS vr
+    WHERE vr.user_id = $4
+    GROUP BY vr.reply_id
+) AS user_votes ON replies.id = user_votes.reply_id
 WHERE
     replies.post_id = $1
 ORDER BY
@@ -163,7 +184,8 @@ SELECT
     users.name AS creator_name,
     COALESCE(r.replies_count, 0) AS replies_count,
     COALESCE(up_votes.up_vote_count, 0) AS up_vote_count,
-    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count
+    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count,
+    COALESCE(user_votes.vote, 0) AS vote
 FROM
     replies
 JOIN
@@ -185,6 +207,12 @@ LEFT JOIN (
     WHERE down = TRUE
     GROUP BY reply_id
 ) AS down_votes ON replies.id = down_votes.reply_id
+LEFT JOIN (
+    SELECT reply_id, MAX(CASE WHEN vr.user_id = $4 AND vr.down = FALSE THEN 1 WHEN vr.user_id = $4 AND vr.down = TRUE THEN -1 ELSE 0 END) AS vote
+    FROM vote_reply AS vr
+    WHERE vr.user_id = $4
+    GROUP BY vr.reply_id
+) AS user_votes ON replies.id = user_votes.reply_id
 WHERE
     replies.parent_reply_id = $1
 ORDER BY

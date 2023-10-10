@@ -7,12 +7,13 @@ import (
 	"strconv"
 
 	database "example.com/go-htmx/db"
+	"example.com/go-htmx/middlewares"
 	"example.com/go-htmx/utils"
 	"example.com/go-htmx/validations"
 	"github.com/gin-gonic/gin"
 )
 
-func GetPost(c *gin.Context) {
+func GetPost(user middlewares.MaybeUser, c *gin.Context) {
 	str, ok := c.Params.Get("id")
 
 	if !ok {
@@ -31,7 +32,16 @@ func GetPost(c *gin.Context) {
 		return
 	}
 
-	posts, err := db.GetPostByIDPublic(context.Background(), int32(id))
+	var userId int32
+
+	if user.User != nil {
+		userId = user.User.ID
+	}
+
+	posts, err := db.GetPostByIDPublic(context.Background(), database.GetPostByIDPublicParams{
+		ID:     int32(id),
+		UserID: userId,
+	})
 
 	if err != nil {
 		panic(err)
@@ -48,7 +58,7 @@ func GetPost(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"post": post})
 }
 
-func GetPostReplies(c *gin.Context) {
+func GetPostReplies(user middlewares.MaybeUser, c *gin.Context) {
 	str, ok := c.Params.Get("id")
 
 	if !ok {
@@ -78,6 +88,12 @@ func GetPostReplies(c *gin.Context) {
 		page = 1
 	}
 
+	var userId int32
+
+	if user.User != nil {
+		userId = user.User.ID
+	}
+
 	replies, err := db.GetPostReplyPublic(context.Background(), database.GetPostReplyPublicParams{
 		PostID: sql.NullInt32{
 			Valid: true,
@@ -85,10 +101,18 @@ func GetPostReplies(c *gin.Context) {
 		},
 		Limit:  int32(limit),
 		Offset: (int32(page) - 1) * int32(limit),
+		UserID: userId,
 	})
 
 	if err != nil {
 		panic(err)
+	}
+
+	if len(replies) == 0 {
+		c.JSON(http.StatusOK, gin.H{
+			"replies": []string{},
+		})
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -291,7 +315,6 @@ func RemovePostVote(user *database.GetUserByIdRow, c *gin.Context) {
 	})
 }
 
-// TODO: after implementation of comments and upVote & downVote
 func DeletePost(user *database.GetUserByIdRow, c *gin.Context) {
 	c.JSON(http.StatusNotImplemented, gin.H{"message": "Not implemented"})
 }

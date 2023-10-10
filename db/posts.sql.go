@@ -113,7 +113,8 @@ SELECT
     subreddit.title AS subreddit_title,
     COALESCE(replies.replies_count, 0) AS replies_count,
     COALESCE(up_votes.up_vote_count, 0) AS up_vote_count,
-    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count
+    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count,
+    COALESCE(user_votes.vote, 0) AS vote
 FROM
     posts
 JOIN
@@ -137,34 +138,46 @@ LEFT JOIN (
     WHERE down = TRUE
     GROUP BY post_id
 ) AS down_votes ON posts.id = down_votes.post_id
+LEFT JOIN (
+    SELECT post_id, MAX(CASE WHEN vp.user_id = $2 AND vp.down = FALSE THEN 1 WHEN vp.user_id = $2 AND vp.down = TRUE THEN -1 ELSE 0 END) AS vote
+    FROM vote_post AS vp
+    WHERE vp.user_id = $2
+    GROUP BY vp.post_id
+) AS user_votes ON posts.id = user_votes.post_id
 WHERE
     posts.id = $1
 `
 
-type GetPostByIDPublicRow struct {
-	ID                  int32     `json:"id"`
-	Title               string    `json:"title"`
-	Text                string    `json:"text"`
-	Image               string    `json:"image"`
-	Video               string    `json:"video"`
-	Link                string    `json:"link"`
-	SubredditID         int32     `json:"subreddit_id"`
-	CreatorID           int32     `json:"creator_id"`
-	CreatedAt           time.Time `json:"created_at"`
-	CreatorUsername     string    `json:"creator_username"`
-	CreatorAvatar       string    `json:"creator_avatar"`
-	CreatorName         string    `json:"creator_name"`
-	SubredditName       string    `json:"subreddit_name"`
-	SubredditAvatar     string    `json:"subreddit_avatar"`
-	SubredditIsVerified bool      `json:"subreddit_is_verified"`
-	SubredditTitle      string    `json:"subreddit_title"`
-	RepliesCount        int64     `json:"replies_count"`
-	UpVoteCount         int64     `json:"up_vote_count"`
-	DownVoteCount       int64     `json:"down_vote_count"`
+type GetPostByIDPublicParams struct {
+	ID     int32 `json:"id"`
+	UserID int32 `json:"user_id"`
 }
 
-func (q *Queries) GetPostByIDPublic(ctx context.Context, id int32) ([]GetPostByIDPublicRow, error) {
-	rows, err := q.db.QueryContext(ctx, getPostByIDPublic, id)
+type GetPostByIDPublicRow struct {
+	ID                  int32       `json:"id"`
+	Title               string      `json:"title"`
+	Text                string      `json:"text"`
+	Image               string      `json:"image"`
+	Video               string      `json:"video"`
+	Link                string      `json:"link"`
+	SubredditID         int32       `json:"subreddit_id"`
+	CreatorID           int32       `json:"creator_id"`
+	CreatedAt           time.Time   `json:"created_at"`
+	CreatorUsername     string      `json:"creator_username"`
+	CreatorAvatar       string      `json:"creator_avatar"`
+	CreatorName         string      `json:"creator_name"`
+	SubredditName       string      `json:"subreddit_name"`
+	SubredditAvatar     string      `json:"subreddit_avatar"`
+	SubredditIsVerified bool        `json:"subreddit_is_verified"`
+	SubredditTitle      string      `json:"subreddit_title"`
+	RepliesCount        int64       `json:"replies_count"`
+	UpVoteCount         int64       `json:"up_vote_count"`
+	DownVoteCount       int64       `json:"down_vote_count"`
+	Vote                interface{} `json:"vote"`
+}
+
+func (q *Queries) GetPostByIDPublic(ctx context.Context, arg GetPostByIDPublicParams) ([]GetPostByIDPublicRow, error) {
+	rows, err := q.db.QueryContext(ctx, getPostByIDPublic, arg.ID, arg.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -192,6 +205,7 @@ func (q *Queries) GetPostByIDPublic(ctx context.Context, id int32) ([]GetPostByI
 			&i.RepliesCount,
 			&i.UpVoteCount,
 			&i.DownVoteCount,
+			&i.Vote,
 		); err != nil {
 			return nil, err
 		}
@@ -265,7 +279,8 @@ SELECT
     subreddit.title AS subreddit_title,
     COALESCE(replies.replies_count, 0) AS replies_count,
     COALESCE(up_votes.up_vote_count, 0) AS up_vote_count,
-    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count
+    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count,
+    COALESCE(user_votes.vote, 0) AS vote
 FROM
     posts
 JOIN
@@ -289,6 +304,12 @@ LEFT JOIN (
     WHERE down = TRUE
     GROUP BY post_id
 ) AS down_votes ON posts.id = down_votes.post_id
+LEFT JOIN (
+    SELECT post_id, MAX(CASE WHEN vp.user_id = $4 AND vp.down = FALSE THEN 1 WHEN vp.user_id = $4 AND vp.down = TRUE THEN -1 ELSE 0 END) AS vote
+    FROM vote_post AS vp
+    WHERE vp.user_id = $4
+    GROUP BY vp.post_id
+) AS user_votes ON posts.id = user_votes.post_id
 WHERE
     posts.creator_id = $1
 ORDER BY
@@ -303,32 +324,39 @@ type GetPostsOfUserParams struct {
 	CreatorID int32 `json:"creator_id"`
 	Limit     int32 `json:"limit"`
 	Offset    int32 `json:"offset"`
+	UserID    int32 `json:"user_id"`
 }
 
 type GetPostsOfUserRow struct {
-	ID                  int32     `json:"id"`
-	Title               string    `json:"title"`
-	Text                string    `json:"text"`
-	Image               string    `json:"image"`
-	Video               string    `json:"video"`
-	Link                string    `json:"link"`
-	SubredditID         int32     `json:"subreddit_id"`
-	CreatorID           int32     `json:"creator_id"`
-	CreatedAt           time.Time `json:"created_at"`
-	CreatorUsername     string    `json:"creator_username"`
-	CreatorAvatar       string    `json:"creator_avatar"`
-	CreatorName         string    `json:"creator_name"`
-	SubredditName       string    `json:"subreddit_name"`
-	SubredditAvatar     string    `json:"subreddit_avatar"`
-	SubredditIsVerified bool      `json:"subreddit_is_verified"`
-	SubredditTitle      string    `json:"subreddit_title"`
-	RepliesCount        int64     `json:"replies_count"`
-	UpVoteCount         int64     `json:"up_vote_count"`
-	DownVoteCount       int64     `json:"down_vote_count"`
+	ID                  int32       `json:"id"`
+	Title               string      `json:"title"`
+	Text                string      `json:"text"`
+	Image               string      `json:"image"`
+	Video               string      `json:"video"`
+	Link                string      `json:"link"`
+	SubredditID         int32       `json:"subreddit_id"`
+	CreatorID           int32       `json:"creator_id"`
+	CreatedAt           time.Time   `json:"created_at"`
+	CreatorUsername     string      `json:"creator_username"`
+	CreatorAvatar       string      `json:"creator_avatar"`
+	CreatorName         string      `json:"creator_name"`
+	SubredditName       string      `json:"subreddit_name"`
+	SubredditAvatar     string      `json:"subreddit_avatar"`
+	SubredditIsVerified bool        `json:"subreddit_is_verified"`
+	SubredditTitle      string      `json:"subreddit_title"`
+	RepliesCount        int64       `json:"replies_count"`
+	UpVoteCount         int64       `json:"up_vote_count"`
+	DownVoteCount       int64       `json:"down_vote_count"`
+	Vote                interface{} `json:"vote"`
 }
 
 func (q *Queries) GetPostsOfUser(ctx context.Context, arg GetPostsOfUserParams) ([]GetPostsOfUserRow, error) {
-	rows, err := q.db.QueryContext(ctx, getPostsOfUser, arg.CreatorID, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, getPostsOfUser,
+		arg.CreatorID,
+		arg.Limit,
+		arg.Offset,
+		arg.UserID,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -356,6 +384,7 @@ func (q *Queries) GetPostsOfUser(ctx context.Context, arg GetPostsOfUserParams) 
 			&i.RepliesCount,
 			&i.UpVoteCount,
 			&i.DownVoteCount,
+			&i.Vote,
 		); err != nil {
 			return nil, err
 		}
@@ -390,7 +419,8 @@ SELECT
     subreddit.title AS subreddit_title,
     COALESCE(replies.replies_count, 0) AS replies_count,
     COALESCE(up_votes.up_vote_count, 0) AS up_vote_count,
-    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count
+    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count,
+    COALESCE(user_votes.vote, 0) AS vote
 FROM
     posts
 JOIN
@@ -414,6 +444,12 @@ LEFT JOIN (
     WHERE down = TRUE
     GROUP BY post_id
 ) AS down_votes ON posts.id = down_votes.post_id
+LEFT JOIN (
+    SELECT post_id, MAX(CASE WHEN vp.user_id = $4 AND vp.down = FALSE THEN 1 WHEN vp.user_id = $4 AND vp.down = TRUE THEN -1 ELSE 0 END) AS vote
+    FROM vote_post AS vp
+    WHERE vp.user_id = $4
+    GROUP BY vp.post_id
+) AS user_votes ON posts.id = user_votes.post_id
 WHERE
     posts.subreddit_id = $1
 ORDER BY
@@ -428,32 +464,39 @@ type GetSubredditPostsParams struct {
 	SubredditID int32 `json:"subreddit_id"`
 	Limit       int32 `json:"limit"`
 	Offset      int32 `json:"offset"`
+	UserID      int32 `json:"user_id"`
 }
 
 type GetSubredditPostsRow struct {
-	ID                  int32     `json:"id"`
-	Title               string    `json:"title"`
-	Text                string    `json:"text"`
-	Image               string    `json:"image"`
-	Video               string    `json:"video"`
-	Link                string    `json:"link"`
-	SubredditID         int32     `json:"subreddit_id"`
-	CreatorID           int32     `json:"creator_id"`
-	CreatedAt           time.Time `json:"created_at"`
-	CreatorUsername     string    `json:"creator_username"`
-	CreatorAvatar       string    `json:"creator_avatar"`
-	CreatorName         string    `json:"creator_name"`
-	SubredditName       string    `json:"subreddit_name"`
-	SubredditAvatar     string    `json:"subreddit_avatar"`
-	SubredditIsVerified bool      `json:"subreddit_is_verified"`
-	SubredditTitle      string    `json:"subreddit_title"`
-	RepliesCount        int64     `json:"replies_count"`
-	UpVoteCount         int64     `json:"up_vote_count"`
-	DownVoteCount       int64     `json:"down_vote_count"`
+	ID                  int32       `json:"id"`
+	Title               string      `json:"title"`
+	Text                string      `json:"text"`
+	Image               string      `json:"image"`
+	Video               string      `json:"video"`
+	Link                string      `json:"link"`
+	SubredditID         int32       `json:"subreddit_id"`
+	CreatorID           int32       `json:"creator_id"`
+	CreatedAt           time.Time   `json:"created_at"`
+	CreatorUsername     string      `json:"creator_username"`
+	CreatorAvatar       string      `json:"creator_avatar"`
+	CreatorName         string      `json:"creator_name"`
+	SubredditName       string      `json:"subreddit_name"`
+	SubredditAvatar     string      `json:"subreddit_avatar"`
+	SubredditIsVerified bool        `json:"subreddit_is_verified"`
+	SubredditTitle      string      `json:"subreddit_title"`
+	RepliesCount        int64       `json:"replies_count"`
+	UpVoteCount         int64       `json:"up_vote_count"`
+	DownVoteCount       int64       `json:"down_vote_count"`
+	Vote                interface{} `json:"vote"`
 }
 
 func (q *Queries) GetSubredditPosts(ctx context.Context, arg GetSubredditPostsParams) ([]GetSubredditPostsRow, error) {
-	rows, err := q.db.QueryContext(ctx, getSubredditPosts, arg.SubredditID, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, getSubredditPosts,
+		arg.SubredditID,
+		arg.Limit,
+		arg.Offset,
+		arg.UserID,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -481,6 +524,7 @@ func (q *Queries) GetSubredditPosts(ctx context.Context, arg GetSubredditPostsPa
 			&i.RepliesCount,
 			&i.UpVoteCount,
 			&i.DownVoteCount,
+			&i.Vote,
 		); err != nil {
 			return nil, err
 		}

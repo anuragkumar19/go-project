@@ -7,11 +7,12 @@ import (
 	"strconv"
 
 	database "example.com/go-htmx/db"
+	"example.com/go-htmx/middlewares"
 	"example.com/go-htmx/validations"
 	"github.com/gin-gonic/gin"
 )
 
-func GetReply(c *gin.Context) {
+func GetReply(user middlewares.MaybeUser, c *gin.Context) {
 	str, ok := c.Params.Get("id")
 
 	if !ok {
@@ -30,7 +31,16 @@ func GetReply(c *gin.Context) {
 		return
 	}
 
-	replies, err := db.GetReplyByIdPublic(context.Background(), int32(id))
+	var userId int32
+
+	if user.User != nil {
+		userId = user.User.ID
+	}
+
+	replies, err := db.GetReplyByIdPublic(context.Background(), database.GetReplyByIdPublicParams{
+		ID:     int32(id),
+		UserID: userId,
+	})
 
 	if err != nil {
 		panic(err)
@@ -47,7 +57,7 @@ func GetReply(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"reply": reply})
 }
 
-func GetReplyReplies(c *gin.Context) {
+func GetReplyReplies(user middlewares.MaybeUser, c *gin.Context) {
 	str, ok := c.Params.Get("id")
 
 	if !ok {
@@ -77,6 +87,12 @@ func GetReplyReplies(c *gin.Context) {
 		page = 1
 	}
 
+	var userId int32
+
+	if user.User != nil {
+		userId = user.User.ID
+	}
+
 	replies, err := db.GetReplyReplies(context.Background(), database.GetReplyRepliesParams{
 		ParentReplyID: sql.NullInt32{
 			Valid: true,
@@ -84,10 +100,18 @@ func GetReplyReplies(c *gin.Context) {
 		},
 		Limit:  int32(limit),
 		Offset: (int32(page) - 1) * int32(limit),
+		UserID: userId,
 	})
 
 	if err != nil {
 		panic(err)
+	}
+
+	if len(replies) == 0 {
+		c.JSON(http.StatusOK, gin.H{
+			"replies": []string{},
+		})
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
