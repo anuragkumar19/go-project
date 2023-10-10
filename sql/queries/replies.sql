@@ -28,25 +28,172 @@ WHERE vote_reply.reply_id = $1 AND vote_reply.user_id = $2;
 SELECT
     replies.id,
     replies.content,
+    replies.parent_reply_id,
+    replies.post_id,
     replies.creator_id,
     replies.created_at,
-    replies.post_id,
-    replies.parent_reply_id,
     users.username AS creator_username,
     users.avatar AS creator_avatar,
     users.name AS creator_name,
-    COUNT(r.id) AS replies_count,
-    COUNT(up_vote.user_id) AS up_vote_count,
-    COUNT(down_vote.user.id) AS down_vote_count
+    COALESCE(r.replies_count, 0) AS replies_count,
+    COALESCE(up_votes.up_vote_count, 0) AS up_vote_count,
+    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count
 FROM
     replies
 JOIN
     users ON replies.creator_id = users.id
-JOIN 
-    replies AS r on r.parent_reply_id = replies.id
-JOIN 
-    vote_reply AS up_vote ON replies.id = up_vote.reply_id AND up_vote.down = FALSE
-JOIN 
-    vote_reply AS down_vote ON replies.id = down_vote.reply_id AND down_vote.down = TRUE
+LEFT JOIN (
+    SELECT parent_reply_id, COUNT(id) AS replies_count
+    FROM replies as r
+    GROUP BY parent_reply_id
+) AS r ON replies.id = r.parent_reply_id
+LEFT JOIN (
+    SELECT reply_id, COUNT(user_id) AS up_vote_count
+    FROM vote_reply
+    WHERE down = FALSE
+    GROUP BY reply_id
+) AS up_votes ON replies.id = up_votes.reply_id
+LEFT JOIN (
+    SELECT reply_id, COUNT(user_id) AS down_vote_count
+    FROM vote_reply
+    WHERE down = TRUE
+    GROUP BY reply_id
+) AS down_votes ON replies.id = down_votes.reply_id
 WHERE
     replies.id = $1;
+
+-- name: GetUserReplyPublic :many
+SELECT
+    replies.id,
+    replies.content,
+    replies.parent_reply_id,
+    replies.post_id,
+    replies.creator_id,
+    replies.created_at,
+    users.username AS creator_username,
+    users.avatar AS creator_avatar,
+    users.name AS creator_name,
+    COALESCE(r.replies_count, 0) AS replies_count,
+    COALESCE(up_votes.up_vote_count, 0) AS up_vote_count,
+    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count
+FROM
+    replies
+JOIN
+    users ON replies.creator_id = users.id
+LEFT JOIN (
+    SELECT parent_reply_id, COUNT(id) AS replies_count
+    FROM replies as r
+    GROUP BY parent_reply_id
+) AS r ON replies.id = r.parent_reply_id
+LEFT JOIN (
+    SELECT reply_id, COUNT(user_id) AS up_vote_count
+    FROM vote_reply
+    WHERE down = FALSE
+    GROUP BY reply_id
+) AS up_votes ON replies.id = up_votes.reply_id
+LEFT JOIN (
+    SELECT reply_id, COUNT(user_id) AS down_vote_count
+    FROM vote_reply
+    WHERE down = TRUE
+    GROUP BY reply_id
+) AS down_votes ON replies.id = down_votes.reply_id
+WHERE
+    replies.creator_id = $1
+ORDER BY
+    replies.created_at DESC
+LIMIT
+    $2
+OFFSET
+    $3;
+
+-- name: GetPostReplyPublic :many
+SELECT
+    replies.id,
+    replies.content,
+    replies.parent_reply_id,
+    replies.post_id,
+    replies.creator_id,
+    replies.created_at,
+    users.username AS creator_username,
+    users.avatar AS creator_avatar,
+    users.name AS creator_name,
+    COALESCE(r.replies_count, 0) AS replies_count,
+    COALESCE(up_votes.up_vote_count, 0) AS up_vote_count,
+    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count
+FROM
+    replies
+JOIN
+    users ON replies.creator_id = users.id
+LEFT JOIN (
+    SELECT parent_reply_id, COUNT(id) AS replies_count
+    FROM replies as r
+    GROUP BY parent_reply_id
+) AS r ON replies.id = r.parent_reply_id
+LEFT JOIN (
+    SELECT reply_id, COUNT(user_id) AS up_vote_count
+    FROM vote_reply
+    WHERE down = FALSE
+    GROUP BY reply_id
+) AS up_votes ON replies.id = up_votes.reply_id
+LEFT JOIN (
+    SELECT reply_id, COUNT(user_id) AS down_vote_count
+    FROM vote_reply
+    WHERE down = TRUE
+    GROUP BY reply_id
+) AS down_votes ON replies.id = down_votes.reply_id
+WHERE
+    replies.post_id = $1
+ORDER BY
+    replies.created_at DESC
+LIMIT
+    $2
+OFFSET
+    $3;
+
+-- name: GetReplyReplies :many
+SELECT
+    replies.id,
+    replies.content,
+    replies.parent_reply_id,
+    replies.post_id,
+    replies.creator_id,
+    replies.created_at,
+    users.username AS creator_username,
+    users.avatar AS creator_avatar,
+    users.name AS creator_name,
+    COALESCE(r.replies_count, 0) AS replies_count,
+    COALESCE(up_votes.up_vote_count, 0) AS up_vote_count,
+    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count
+FROM
+    replies
+JOIN
+    users ON replies.creator_id = users.id
+LEFT JOIN (
+    SELECT parent_reply_id, COUNT(id) AS replies_count
+    FROM replies as r
+    GROUP BY parent_reply_id
+) AS r ON replies.id = r.parent_reply_id
+LEFT JOIN (
+    SELECT reply_id, COUNT(user_id) AS up_vote_count
+    FROM vote_reply
+    WHERE down = FALSE
+    GROUP BY reply_id
+) AS up_votes ON replies.id = up_votes.reply_id
+LEFT JOIN (
+    SELECT reply_id, COUNT(user_id) AS down_vote_count
+    FROM vote_reply
+    WHERE down = TRUE
+    GROUP BY reply_id
+) AS down_votes ON replies.id = down_votes.reply_id
+WHERE
+    replies.parent_reply_id = $1
+ORDER BY
+    replies.created_at DESC
+LIMIT
+    $2
+OFFSET
+    $3;
+
+
+
+

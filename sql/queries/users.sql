@@ -77,8 +77,15 @@ WHERE id = $1;
 
 -- name: GetUserByUsernamePublic :many
 SELECT id, name, username, avatar, created_at FROM users
-WHERE username = $1;
+WHERE username = $1 AND is_email_verified = true;
 
 -- name: GetUserByIDPublic :many
 SELECT id, name, username, avatar, created_at FROM users
-WHERE id = $1;
+WHERE id = $1 AND is_email_verified = true;
+
+-- name: SearchUserPublic :many
+SELECT id, name, username, avatar FROM users 
+WHERE is_email_verified = true AND (username LIKE $1 OR name LIKE $1)
+ORDER BY created_at DESC
+LIMIT $2
+OFFSET $3;

@@ -26,4 +26,5 @@ func subredditRouter(r *gin.RouterGroup) {
 	subreddit.POST("/:id/posts/image", middlewares.WithAuthGuard(handlers.CreatePostWithImage))
 	subreddit.POST("/:id/posts/video", middlewares.WithAuthGuard(handlers.CreatePostWithVideo))
 	subreddit.POST("/:id/posts/link", middlewares.WithAuthGuard(handlers.CreatePostWithLink))
+	subreddit.DELETE("/:id", middlewares.WithAuthGuard(handlers.DeleteSubreddit))
 }

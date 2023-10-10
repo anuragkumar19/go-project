@@ -1,13 +1,13 @@
 package validations
 
 type CreatePostWithTextParameters struct {
-	Title string `json:"title" from:"title" validate:"max=30,required" mod:"trim"`
-	Text  string `json:"text" from:"text" validate:"max=2000,required" mod:"trim"`
+	Title string `json:"title" form:"title" validate:"max=30,required" mod:"trim"`
+	Text  string `json:"text" form:"text" validate:"max=2000,required" mod:"trim"`
 }
 
 type CreatePostWithMediaParameters struct {
-	Title string `json:"title" from:"title" validate:"max=30,required" mod:"trim"`
-	Text  string `json:"text" from:"text" validate:"max=2000" mod:"trim"`
+	Title string `json:"title" form:"title" validate:"max=30,required" mod:"trim"`
+	Text  string `json:"text" form:"text" validate:"max=2000" mod:"trim"`
 }
 
 type CreatePostWithLinkParameters struct {

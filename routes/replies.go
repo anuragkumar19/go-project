@@ -14,4 +14,5 @@ func repliesRouter(r *gin.RouterGroup) {
 	replies.POST("/:id/vote", middlewares.WithAuthGuard(handlers.VoteReply))
 	replies.DELETE("/:id/vote", middlewares.WithAuthGuard(handlers.RemoveReplyVote))
 	replies.POST("/:id/reply", middlewares.WithAuthGuard(handlers.ReplyToReply))
+	replies.DELETE("/:id", middlewares.WithAuthGuard(handlers.DeleteReply))
 }

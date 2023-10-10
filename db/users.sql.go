@@ -175,7 +175,7 @@ func (q *Queries) ForgotPassword(ctx context.Context, arg ForgotPasswordParams) 
 
 const getUserByIDPublic = `-- name: GetUserByIDPublic :many
 SELECT id, name, username, avatar, created_at FROM users
-WHERE id = $1
+WHERE id = $1 AND is_email_verified = true
 `
 
 type GetUserByIDPublicRow struct {
@@ -264,7 +264,7 @@ func (q *Queries) GetUserById(ctx context.Context, id int32) ([]GetUserByIdRow, 
 
 const getUserByUsernamePublic = `-- name: GetUserByUsernamePublic :many
 SELECT id, name, username, avatar, created_at FROM users
-WHERE username = $1
+WHERE username = $1 AND is_email_verified = true
 `
 
 type GetUserByUsernamePublicRow struct {
@@ -380,6 +380,55 @@ func (q *Queries) ResetPassword(ctx context.Context, arg ResetPasswordParams) ([
 			return nil, err
 		}
 		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchUserPublic = `-- name: SearchUserPublic :many
+SELECT id, name, username, avatar FROM users 
+WHERE is_email_verified = true AND (username LIKE $1 OR name LIKE $1)
+ORDER BY created_at DESC
+LIMIT $2
+OFFSET $3
+`
+
+type SearchUserPublicParams struct {
+	Username string `json:"username"`
+	Limit    int32  `json:"limit"`
+	Offset   int32  `json:"offset"`
+}
+
+type SearchUserPublicRow struct {
+	ID       int32  `json:"id"`
+	Name     string `json:"name"`
+	Username string `json:"username"`
+	Avatar   string `json:"avatar"`
+}
+
+func (q *Queries) SearchUserPublic(ctx context.Context, arg SearchUserPublicParams) ([]SearchUserPublicRow, error) {
+	rows, err := q.db.QueryContext(ctx, searchUserPublic, arg.Username, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchUserPublicRow
+	for rows.Next() {
+		var i SearchUserPublicRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Username,
+			&i.Avatar,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err

@@ -42,23 +42,36 @@ SELECT
     subreddit.avatar AS subreddit_avatar,
     subreddit.is_verified AS subreddit_is_verified,
     subreddit.title AS subreddit_title,
-    count(replies.id) AS replies_count,
-    count(up_vote.user_id) AS up_vote_count,
-    count(down_vote.user.id) AS down_vote_count
+    COALESCE(replies.replies_count, 0) AS replies_count,
+    COALESCE(up_votes.up_vote_count, 0) AS up_vote_count,
+    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count
 FROM
     posts
 JOIN
     users ON posts.creator_id = users.id
 JOIN
     subreddit ON posts.subreddit_id = subreddit.id
-JOIN
-    replies ON posts.id = replies.post_id
-JOIN 
-    vote_post AS up_vote ON posts.id = up_vote.post_id AND up_vote.down = FALSE
-JOIN 
-    vote_post AS down_vote ON posts.id = down_vote.post_id AND down_vote.down = TRUE
+LEFT JOIN (
+    SELECT post_id, COUNT(id) AS replies_count
+    FROM replies
+    GROUP BY post_id
+) AS replies ON posts.id = replies.post_id
+LEFT JOIN (
+    SELECT post_id, COUNT(user_id) AS up_vote_count
+    FROM vote_post
+    WHERE down = FALSE
+    GROUP BY post_id
+) AS up_votes ON posts.id = up_votes.post_id
+LEFT JOIN (
+    SELECT post_id, COUNT(user_id) AS down_vote_count
+    FROM vote_post
+    WHERE down = TRUE
+    GROUP BY post_id
+) AS down_votes ON posts.id = down_votes.post_id
 WHERE
     posts.id = $1;
+
+
 
 
 -- name: GetPostsOfUser :many
@@ -79,23 +92,87 @@ SELECT
     subreddit.avatar AS subreddit_avatar,
     subreddit.is_verified AS subreddit_is_verified,
     subreddit.title AS subreddit_title,
-    count(replies.id) AS replies_count,
-    count(up_vote.user_id) AS up_vote_count,
-    count(down_vote.user.id) AS down_vote_count
+    COALESCE(replies.replies_count, 0) AS replies_count,
+    COALESCE(up_votes.up_vote_count, 0) AS up_vote_count,
+    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count
 FROM
     posts
 JOIN
     users ON posts.creator_id = users.id
 JOIN
     subreddit ON posts.subreddit_id = subreddit.id
-JOIN
-    replies ON posts.id = replies.post_id
-JOIN 
-    vote_post AS up_vote ON posts.id = up_vote.post_id AND up_vote.down = FALSE
-JOIN 
-    vote_post AS down_vote ON posts.id = down_vote.post_id AND down_vote.down = TRUE
+LEFT JOIN (
+    SELECT post_id, COUNT(id) AS replies_count
+    FROM replies
+    GROUP BY post_id
+) AS replies ON posts.id = replies.post_id
+LEFT JOIN (
+    SELECT post_id, COUNT(user_id) AS up_vote_count
+    FROM vote_post
+    WHERE down = FALSE
+    GROUP BY post_id
+) AS up_votes ON posts.id = up_votes.post_id
+LEFT JOIN (
+    SELECT post_id, COUNT(user_id) AS down_vote_count
+    FROM vote_post
+    WHERE down = TRUE
+    GROUP BY post_id
+) AS down_votes ON posts.id = down_votes.post_id
 WHERE
     posts.creator_id = $1
+ORDER BY
+    posts.created_at DESC
+LIMIT
+    $2
+OFFSET
+    $3;
+
+-- name: GetSubredditPosts :many
+SELECT
+    posts.id,
+    posts.title,
+    posts.text,
+    posts.image,
+    posts.video,
+    posts.link,
+    posts.subreddit_id,
+    posts.creator_id,
+    posts.created_at,
+    users.username AS creator_username,
+    users.avatar AS creator_avatar,
+    users.name AS creator_name,
+    subreddit.name AS subreddit_name,
+    subreddit.avatar AS subreddit_avatar,
+    subreddit.is_verified AS subreddit_is_verified,
+    subreddit.title AS subreddit_title,
+    COALESCE(replies.replies_count, 0) AS replies_count,
+    COALESCE(up_votes.up_vote_count, 0) AS up_vote_count,
+    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count
+FROM
+    posts
+JOIN
+    users ON posts.creator_id = users.id
+JOIN
+    subreddit ON posts.subreddit_id = subreddit.id
+LEFT JOIN (
+    SELECT post_id, COUNT(id) AS replies_count
+    FROM replies
+    GROUP BY post_id
+) AS replies ON posts.id = replies.post_id
+LEFT JOIN (
+    SELECT post_id, COUNT(user_id) AS up_vote_count
+    FROM vote_post
+    WHERE down = FALSE
+    GROUP BY post_id
+) AS up_votes ON posts.id = up_votes.post_id
+LEFT JOIN (
+    SELECT post_id, COUNT(user_id) AS down_vote_count
+    FROM vote_post
+    WHERE down = TRUE
+    GROUP BY post_id
+) AS down_votes ON posts.id = down_votes.post_id
+WHERE
+    posts.subreddit_id = $1
 ORDER BY
     posts.created_at DESC
 LIMIT

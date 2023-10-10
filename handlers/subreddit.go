@@ -39,6 +39,13 @@ func GetSubredditByID(c *gin.Context) {
 		panic(err)
 	}
 
+	if len(items) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "Subreddit not found",
+		})
+		return
+	}
+
 	subreddit := items[0]
 	c.JSON(http.StatusOK, gin.H{"subreddit": subreddit})
 }
@@ -59,11 +66,59 @@ func GetSubredditByName(c *gin.Context) {
 		panic(err)
 	}
 
+	if len(items) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "Subreddit not found",
+		})
+		return
+	}
+
 	subreddit := items[0]
 	c.JSON(http.StatusOK, gin.H{"subreddit": subreddit})
 }
 func GetSubredditPosts(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"message": "Not implemented"})
+	str, ok := c.Params.Get("id")
+
+	if !ok {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "Subreddit not found",
+		})
+		return
+	}
+
+	id, err := strconv.Atoi(str)
+
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "Subreddit not found",
+		})
+		return
+	}
+
+	limit, _ := strconv.Atoi(c.Query("limit"))
+	page, _ := strconv.Atoi(c.Query("page"))
+
+	if limit == 0 {
+		limit = 10
+	}
+
+	if page == 0 {
+		page = 1
+	}
+
+	posts, err := db.GetSubredditPosts(context.Background(), database.GetSubredditPostsParams{
+		SubredditID: int32(id),
+		Limit:       int32(limit),
+		Offset:      (int32(page) - 1) * int32(limit),
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"posts": posts,
+	})
 }
 
 func CreateSubreddit(user *database.GetUserByIdRow, c *gin.Context) {

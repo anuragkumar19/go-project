@@ -53,20 +53,39 @@ func (q *Queries) CreateSubreddit(ctx context.Context, arg CreateSubredditParams
 }
 
 const findSubredditByIDPublic = `-- name: FindSubredditByIDPublic :many
-SELECT id, name, about, title, avatar, cover, is_verified, created_at, creator_id FROM subreddit 
-WHERE id = $1
+SELECT
+    subreddit.id,
+    subreddit.name,
+    subreddit.about,
+    subreddit.title,
+    subreddit.avatar,
+    subreddit.cover,
+    subreddit.is_verified,
+    subreddit.created_at,
+    subreddit.creator_id,
+    COALESCE(member.member_count, 0) AS member_count
+FROM
+    subreddit
+LEFT JOIN (
+    SELECT subreddit_id, COUNT(user_id) AS member_count
+    FROM user_subreddit_join
+    GROUP BY subreddit_id
+) AS member ON subreddit.id = member.subreddit_id
+WHERE
+    subreddit.id = $1
 `
 
 type FindSubredditByIDPublicRow struct {
-	ID         int32     `json:"id"`
-	Name       string    `json:"name"`
-	About      string    `json:"about"`
-	Title      string    `json:"title"`
-	Avatar     string    `json:"avatar"`
-	Cover      string    `json:"cover"`
-	IsVerified bool      `json:"is_verified"`
-	CreatedAt  time.Time `json:"created_at"`
-	CreatorID  int32     `json:"creator_id"`
+	ID          int32     `json:"id"`
+	Name        string    `json:"name"`
+	About       string    `json:"about"`
+	Title       string    `json:"title"`
+	Avatar      string    `json:"avatar"`
+	Cover       string    `json:"cover"`
+	IsVerified  bool      `json:"is_verified"`
+	CreatedAt   time.Time `json:"created_at"`
+	CreatorID   int32     `json:"creator_id"`
+	MemberCount int64     `json:"member_count"`
 }
 
 func (q *Queries) FindSubredditByIDPublic(ctx context.Context, id int32) ([]FindSubredditByIDPublicRow, error) {
@@ -88,6 +107,7 @@ func (q *Queries) FindSubredditByIDPublic(ctx context.Context, id int32) ([]Find
 			&i.IsVerified,
 			&i.CreatedAt,
 			&i.CreatorID,
+			&i.MemberCount,
 		); err != nil {
 			return nil, err
 		}
@@ -164,20 +184,39 @@ func (q *Queries) FindSubredditByName(ctx context.Context, name string) ([]int32
 }
 
 const findSubredditByNamePublic = `-- name: FindSubredditByNamePublic :many
-SELECT id, name, about, title, avatar, cover, is_verified, created_at, creator_id FROM subreddit 
-WHERE name = $1
+SELECT
+    subreddit.id,
+    subreddit.name,
+    subreddit.about,
+    subreddit.title,
+    subreddit.avatar,
+    subreddit.cover,
+    subreddit.is_verified,
+    subreddit.created_at,
+    subreddit.creator_id,
+    COALESCE(member.member_count, 0) AS member_count
+FROM
+    subreddit
+LEFT JOIN (
+    SELECT subreddit_id, COUNT(user_id) AS member_count
+    FROM user_subreddit_join
+    GROUP BY subreddit_id
+) AS member ON subreddit.id = member.subreddit_id
+WHERE
+    subreddit.name = $1
 `
 
 type FindSubredditByNamePublicRow struct {
-	ID         int32     `json:"id"`
-	Name       string    `json:"name"`
-	About      string    `json:"about"`
-	Title      string    `json:"title"`
-	Avatar     string    `json:"avatar"`
-	Cover      string    `json:"cover"`
-	IsVerified bool      `json:"is_verified"`
-	CreatedAt  time.Time `json:"created_at"`
-	CreatorID  int32     `json:"creator_id"`
+	ID          int32     `json:"id"`
+	Name        string    `json:"name"`
+	About       string    `json:"about"`
+	Title       string    `json:"title"`
+	Avatar      string    `json:"avatar"`
+	Cover       string    `json:"cover"`
+	IsVerified  bool      `json:"is_verified"`
+	CreatedAt   time.Time `json:"created_at"`
+	CreatorID   int32     `json:"creator_id"`
+	MemberCount int64     `json:"member_count"`
 }
 
 func (q *Queries) FindSubredditByNamePublic(ctx context.Context, name string) ([]FindSubredditByNamePublicRow, error) {
@@ -199,6 +238,7 @@ func (q *Queries) FindSubredditByNamePublic(ctx context.Context, name string) ([
 			&i.IsVerified,
 			&i.CreatedAt,
 			&i.CreatorID,
+			&i.MemberCount,
 		); err != nil {
 			return nil, err
 		}
@@ -293,6 +333,76 @@ type LeaveSubredditParams struct {
 func (q *Queries) LeaveSubreddit(ctx context.Context, arg LeaveSubredditParams) error {
 	_, err := q.db.ExecContext(ctx, leaveSubreddit, arg.UserID, arg.SubredditID)
 	return err
+}
+
+const searchSubredditPublic = `-- name: SearchSubredditPublic :many
+SELECT
+    subreddit.id,
+    subreddit.name,
+    subreddit.title,
+    subreddit.avatar,
+    subreddit.is_verified,
+    COALESCE(member.member_count, 0) AS member_count
+FROM
+    subreddit
+LEFT JOIN (
+    SELECT subreddit_id, COUNT(user_id) AS member_count
+    FROM user_subreddit_join
+    GROUP BY subreddit_id
+) AS member ON subreddit.id = member.subreddit_id
+WHERE
+    subreddit.name LIKE $1 OR subreddit.title LIKE $1 OR subreddit.about LIKE $1
+ORDER BY
+    subreddit.created_at DESC
+LIMIT
+    $2
+OFFSET
+    $3
+`
+
+type SearchSubredditPublicParams struct {
+	Name   string `json:"name"`
+	Limit  int32  `json:"limit"`
+	Offset int32  `json:"offset"`
+}
+
+type SearchSubredditPublicRow struct {
+	ID          int32  `json:"id"`
+	Name        string `json:"name"`
+	Title       string `json:"title"`
+	Avatar      string `json:"avatar"`
+	IsVerified  bool   `json:"is_verified"`
+	MemberCount int64  `json:"member_count"`
+}
+
+func (q *Queries) SearchSubredditPublic(ctx context.Context, arg SearchSubredditPublicParams) ([]SearchSubredditPublicRow, error) {
+	rows, err := q.db.QueryContext(ctx, searchSubredditPublic, arg.Name, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchSubredditPublicRow
+	for rows.Next() {
+		var i SearchSubredditPublicRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Title,
+			&i.Avatar,
+			&i.IsVerified,
+			&i.MemberCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updateSubredditAbout = `-- name: UpdateSubredditAbout :exec

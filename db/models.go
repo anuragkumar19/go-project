@@ -28,8 +28,8 @@ type Reply struct {
 	PostID        sql.NullInt32 `json:"post_id"`
 	ParentReplyID sql.NullInt32 `json:"parent_reply_id"`
 	Content       string        `json:"content"`
-	CreatedAt     sql.NullTime  `json:"created_at"`
-	UpdatedAt     sql.NullTime  `json:"updated_at"`
+	CreatedAt     time.Time     `json:"created_at"`
+	UpdatedAt     time.Time     `json:"updated_at"`
 }
 
 type Subreddit struct {

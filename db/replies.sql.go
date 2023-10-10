@@ -8,6 +8,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"time"
 )
 
 const createReply = `-- name: CreateReply :many
@@ -99,30 +100,143 @@ func (q *Queries) FindReplyById(ctx context.Context, id int32) ([]FindReplyByIdR
 	return items, nil
 }
 
-const getReplyByIdPublic = `-- name: GetReplyByIdPublic :many
+const getPostReplyPublic = `-- name: GetPostReplyPublic :many
 SELECT
     replies.id,
     replies.content,
+    replies.parent_reply_id,
+    replies.post_id,
     replies.creator_id,
     replies.created_at,
-    replies.post_id,
-    replies.parent_reply_id,
     users.username AS creator_username,
     users.avatar AS creator_avatar,
     users.name AS creator_name,
-    COUNT(r.id) AS replies_count,
-    COUNT(up_vote.user_id) AS up_vote_count,
-    COUNT(down_vote.user.id) AS down_vote_count
+    COALESCE(r.replies_count, 0) AS replies_count,
+    COALESCE(up_votes.up_vote_count, 0) AS up_vote_count,
+    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count
 FROM
     replies
 JOIN
     users ON replies.creator_id = users.id
-JOIN 
-    replies AS r on r.parent_reply_id = replies.id
-JOIN 
-    vote_reply AS up_vote ON replies.id = up_vote.reply_id AND up_vote.down = FALSE
-JOIN 
-    vote_reply AS down_vote ON replies.id = down_vote.reply_id AND down_vote.down = TRUE
+LEFT JOIN (
+    SELECT parent_reply_id, COUNT(id) AS replies_count
+    FROM replies as r
+    GROUP BY parent_reply_id
+) AS r ON replies.id = r.parent_reply_id
+LEFT JOIN (
+    SELECT reply_id, COUNT(user_id) AS up_vote_count
+    FROM vote_reply
+    WHERE down = FALSE
+    GROUP BY reply_id
+) AS up_votes ON replies.id = up_votes.reply_id
+LEFT JOIN (
+    SELECT reply_id, COUNT(user_id) AS down_vote_count
+    FROM vote_reply
+    WHERE down = TRUE
+    GROUP BY reply_id
+) AS down_votes ON replies.id = down_votes.reply_id
+WHERE
+    replies.post_id = $1
+ORDER BY
+    replies.created_at DESC
+LIMIT
+    $2
+OFFSET
+    $3
+`
+
+type GetPostReplyPublicParams struct {
+	PostID sql.NullInt32 `json:"post_id"`
+	Limit  int32         `json:"limit"`
+	Offset int32         `json:"offset"`
+}
+
+type GetPostReplyPublicRow struct {
+	ID              int32         `json:"id"`
+	Content         string        `json:"content"`
+	ParentReplyID   sql.NullInt32 `json:"parent_reply_id"`
+	PostID          sql.NullInt32 `json:"post_id"`
+	CreatorID       int32         `json:"creator_id"`
+	CreatedAt       time.Time     `json:"created_at"`
+	CreatorUsername string        `json:"creator_username"`
+	CreatorAvatar   string        `json:"creator_avatar"`
+	CreatorName     string        `json:"creator_name"`
+	RepliesCount    int64         `json:"replies_count"`
+	UpVoteCount     int64         `json:"up_vote_count"`
+	DownVoteCount   int64         `json:"down_vote_count"`
+}
+
+func (q *Queries) GetPostReplyPublic(ctx context.Context, arg GetPostReplyPublicParams) ([]GetPostReplyPublicRow, error) {
+	rows, err := q.db.QueryContext(ctx, getPostReplyPublic, arg.PostID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetPostReplyPublicRow
+	for rows.Next() {
+		var i GetPostReplyPublicRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Content,
+			&i.ParentReplyID,
+			&i.PostID,
+			&i.CreatorID,
+			&i.CreatedAt,
+			&i.CreatorUsername,
+			&i.CreatorAvatar,
+			&i.CreatorName,
+			&i.RepliesCount,
+			&i.UpVoteCount,
+			&i.DownVoteCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getReplyByIdPublic = `-- name: GetReplyByIdPublic :many
+SELECT
+    replies.id,
+    replies.content,
+    replies.parent_reply_id,
+    replies.post_id,
+    replies.creator_id,
+    replies.created_at,
+    users.username AS creator_username,
+    users.avatar AS creator_avatar,
+    users.name AS creator_name,
+    COALESCE(r.replies_count, 0) AS replies_count,
+    COALESCE(up_votes.up_vote_count, 0) AS up_vote_count,
+    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count
+FROM
+    replies
+JOIN
+    users ON replies.creator_id = users.id
+LEFT JOIN (
+    SELECT parent_reply_id, COUNT(id) AS replies_count
+    FROM replies as r
+    GROUP BY parent_reply_id
+) AS r ON replies.id = r.parent_reply_id
+LEFT JOIN (
+    SELECT reply_id, COUNT(user_id) AS up_vote_count
+    FROM vote_reply
+    WHERE down = FALSE
+    GROUP BY reply_id
+) AS up_votes ON replies.id = up_votes.reply_id
+LEFT JOIN (
+    SELECT reply_id, COUNT(user_id) AS down_vote_count
+    FROM vote_reply
+    WHERE down = TRUE
+    GROUP BY reply_id
+) AS down_votes ON replies.id = down_votes.reply_id
 WHERE
     replies.id = $1
 `
@@ -130,10 +244,10 @@ WHERE
 type GetReplyByIdPublicRow struct {
 	ID              int32         `json:"id"`
 	Content         string        `json:"content"`
-	CreatorID       int32         `json:"creator_id"`
-	CreatedAt       sql.NullTime  `json:"created_at"`
-	PostID          sql.NullInt32 `json:"post_id"`
 	ParentReplyID   sql.NullInt32 `json:"parent_reply_id"`
+	PostID          sql.NullInt32 `json:"post_id"`
+	CreatorID       int32         `json:"creator_id"`
+	CreatedAt       time.Time     `json:"created_at"`
 	CreatorUsername string        `json:"creator_username"`
 	CreatorAvatar   string        `json:"creator_avatar"`
 	CreatorName     string        `json:"creator_name"`
@@ -154,10 +268,112 @@ func (q *Queries) GetReplyByIdPublic(ctx context.Context, id int32) ([]GetReplyB
 		if err := rows.Scan(
 			&i.ID,
 			&i.Content,
+			&i.ParentReplyID,
+			&i.PostID,
 			&i.CreatorID,
 			&i.CreatedAt,
-			&i.PostID,
+			&i.CreatorUsername,
+			&i.CreatorAvatar,
+			&i.CreatorName,
+			&i.RepliesCount,
+			&i.UpVoteCount,
+			&i.DownVoteCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getReplyReplies = `-- name: GetReplyReplies :many
+SELECT
+    replies.id,
+    replies.content,
+    replies.parent_reply_id,
+    replies.post_id,
+    replies.creator_id,
+    replies.created_at,
+    users.username AS creator_username,
+    users.avatar AS creator_avatar,
+    users.name AS creator_name,
+    COALESCE(r.replies_count, 0) AS replies_count,
+    COALESCE(up_votes.up_vote_count, 0) AS up_vote_count,
+    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count
+FROM
+    replies
+JOIN
+    users ON replies.creator_id = users.id
+LEFT JOIN (
+    SELECT parent_reply_id, COUNT(id) AS replies_count
+    FROM replies as r
+    GROUP BY parent_reply_id
+) AS r ON replies.id = r.parent_reply_id
+LEFT JOIN (
+    SELECT reply_id, COUNT(user_id) AS up_vote_count
+    FROM vote_reply
+    WHERE down = FALSE
+    GROUP BY reply_id
+) AS up_votes ON replies.id = up_votes.reply_id
+LEFT JOIN (
+    SELECT reply_id, COUNT(user_id) AS down_vote_count
+    FROM vote_reply
+    WHERE down = TRUE
+    GROUP BY reply_id
+) AS down_votes ON replies.id = down_votes.reply_id
+WHERE
+    replies.parent_reply_id = $1
+ORDER BY
+    replies.created_at DESC
+LIMIT
+    $2
+OFFSET
+    $3
+`
+
+type GetReplyRepliesParams struct {
+	ParentReplyID sql.NullInt32 `json:"parent_reply_id"`
+	Limit         int32         `json:"limit"`
+	Offset        int32         `json:"offset"`
+}
+
+type GetReplyRepliesRow struct {
+	ID              int32         `json:"id"`
+	Content         string        `json:"content"`
+	ParentReplyID   sql.NullInt32 `json:"parent_reply_id"`
+	PostID          sql.NullInt32 `json:"post_id"`
+	CreatorID       int32         `json:"creator_id"`
+	CreatedAt       time.Time     `json:"created_at"`
+	CreatorUsername string        `json:"creator_username"`
+	CreatorAvatar   string        `json:"creator_avatar"`
+	CreatorName     string        `json:"creator_name"`
+	RepliesCount    int64         `json:"replies_count"`
+	UpVoteCount     int64         `json:"up_vote_count"`
+	DownVoteCount   int64         `json:"down_vote_count"`
+}
+
+func (q *Queries) GetReplyReplies(ctx context.Context, arg GetReplyRepliesParams) ([]GetReplyRepliesRow, error) {
+	rows, err := q.db.QueryContext(ctx, getReplyReplies, arg.ParentReplyID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetReplyRepliesRow
+	for rows.Next() {
+		var i GetReplyRepliesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Content,
 			&i.ParentReplyID,
+			&i.PostID,
+			&i.CreatorID,
+			&i.CreatedAt,
 			&i.CreatorUsername,
 			&i.CreatorAvatar,
 			&i.CreatorName,
@@ -204,6 +420,108 @@ func (q *Queries) GetReplyVote(ctx context.Context, arg GetReplyVoteParams) ([]G
 	for rows.Next() {
 		var i GetReplyVoteRow
 		if err := rows.Scan(&i.ReplyID, &i.UserID, &i.Down); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getUserReplyPublic = `-- name: GetUserReplyPublic :many
+SELECT
+    replies.id,
+    replies.content,
+    replies.parent_reply_id,
+    replies.post_id,
+    replies.creator_id,
+    replies.created_at,
+    users.username AS creator_username,
+    users.avatar AS creator_avatar,
+    users.name AS creator_name,
+    COALESCE(r.replies_count, 0) AS replies_count,
+    COALESCE(up_votes.up_vote_count, 0) AS up_vote_count,
+    COALESCE(down_votes.down_vote_count, 0) AS down_vote_count
+FROM
+    replies
+JOIN
+    users ON replies.creator_id = users.id
+LEFT JOIN (
+    SELECT parent_reply_id, COUNT(id) AS replies_count
+    FROM replies as r
+    GROUP BY parent_reply_id
+) AS r ON replies.id = r.parent_reply_id
+LEFT JOIN (
+    SELECT reply_id, COUNT(user_id) AS up_vote_count
+    FROM vote_reply
+    WHERE down = FALSE
+    GROUP BY reply_id
+) AS up_votes ON replies.id = up_votes.reply_id
+LEFT JOIN (
+    SELECT reply_id, COUNT(user_id) AS down_vote_count
+    FROM vote_reply
+    WHERE down = TRUE
+    GROUP BY reply_id
+) AS down_votes ON replies.id = down_votes.reply_id
+WHERE
+    replies.creator_id = $1
+ORDER BY
+    replies.created_at DESC
+LIMIT
+    $2
+OFFSET
+    $3
+`
+
+type GetUserReplyPublicParams struct {
+	CreatorID int32 `json:"creator_id"`
+	Limit     int32 `json:"limit"`
+	Offset    int32 `json:"offset"`
+}
+
+type GetUserReplyPublicRow struct {
+	ID              int32         `json:"id"`
+	Content         string        `json:"content"`
+	ParentReplyID   sql.NullInt32 `json:"parent_reply_id"`
+	PostID          sql.NullInt32 `json:"post_id"`
+	CreatorID       int32         `json:"creator_id"`
+	CreatedAt       time.Time     `json:"created_at"`
+	CreatorUsername string        `json:"creator_username"`
+	CreatorAvatar   string        `json:"creator_avatar"`
+	CreatorName     string        `json:"creator_name"`
+	RepliesCount    int64         `json:"replies_count"`
+	UpVoteCount     int64         `json:"up_vote_count"`
+	DownVoteCount   int64         `json:"down_vote_count"`
+}
+
+func (q *Queries) GetUserReplyPublic(ctx context.Context, arg GetUserReplyPublicParams) ([]GetUserReplyPublicRow, error) {
+	rows, err := q.db.QueryContext(ctx, getUserReplyPublic, arg.CreatorID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetUserReplyPublicRow
+	for rows.Next() {
+		var i GetUserReplyPublicRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Content,
+			&i.ParentReplyID,
+			&i.PostID,
+			&i.CreatorID,
+			&i.CreatedAt,
+			&i.CreatorUsername,
+			&i.CreatorAvatar,
+			&i.CreatorName,
+			&i.RepliesCount,
+			&i.UpVoteCount,
+			&i.DownVoteCount,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

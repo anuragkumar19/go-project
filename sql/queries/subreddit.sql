@@ -52,9 +52,70 @@ DELETE FROM user_subreddit_join
 WHERE user_id = $1 AND subreddit_id = $2;
 
 -- name: FindSubredditByIDPublic :many
-SELECT id, name, about, title, avatar, cover, is_verified, created_at, creator_id FROM subreddit 
-WHERE id = $1;
+SELECT
+    subreddit.id,
+    subreddit.name,
+    subreddit.about,
+    subreddit.title,
+    subreddit.avatar,
+    subreddit.cover,
+    subreddit.is_verified,
+    subreddit.created_at,
+    subreddit.creator_id,
+    COALESCE(member.member_count, 0) AS member_count
+FROM
+    subreddit
+LEFT JOIN (
+    SELECT subreddit_id, COUNT(user_id) AS member_count
+    FROM user_subreddit_join
+    GROUP BY subreddit_id
+) AS member ON subreddit.id = member.subreddit_id
+WHERE
+    subreddit.id = $1;
 
 -- name: FindSubredditByNamePublic :many
-SELECT id, name, about, title, avatar, cover, is_verified, created_at, creator_id FROM subreddit 
-WHERE name = $1;
+SELECT
+    subreddit.id,
+    subreddit.name,
+    subreddit.about,
+    subreddit.title,
+    subreddit.avatar,
+    subreddit.cover,
+    subreddit.is_verified,
+    subreddit.created_at,
+    subreddit.creator_id,
+    COALESCE(member.member_count, 0) AS member_count
+FROM
+    subreddit
+LEFT JOIN (
+    SELECT subreddit_id, COUNT(user_id) AS member_count
+    FROM user_subreddit_join
+    GROUP BY subreddit_id
+) AS member ON subreddit.id = member.subreddit_id
+WHERE
+    subreddit.name = $1;
+
+
+-- name: SearchSubredditPublic :many
+SELECT
+    subreddit.id,
+    subreddit.name,
+    subreddit.title,
+    subreddit.avatar,
+    subreddit.is_verified,
+    COALESCE(member.member_count, 0) AS member_count
+FROM
+    subreddit
+LEFT JOIN (
+    SELECT subreddit_id, COUNT(user_id) AS member_count
+    FROM user_subreddit_join
+    GROUP BY subreddit_id
+) AS member ON subreddit.id = member.subreddit_id
+WHERE
+    subreddit.name LIKE $1 OR subreddit.title LIKE $1 OR subreddit.about LIKE $1
+ORDER BY
+    subreddit.created_at DESC
+LIMIT
+    $2
+OFFSET
+    $3;
