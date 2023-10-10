@@ -5,7 +5,7 @@ CREATE TABLE vote_reply (
   down BOOLEAN NOT NULL,
   PRIMARY KEY (user_id, reply_id),
   CONSTRAINT vote_reply_user_fk FOREIGN KEY (user_id) REFERENCES users(id),
-  CONSTRAINT vote_reply_reply_fk FOREIGN KEY (reply_id) REFERENCES replies(id)
+  CONSTRAINT vote_reply_reply_fk FOREIGN KEY (reply_id) REFERENCES replies(id) ON DELETE CASCADE
 );
 
 -- +goose Down

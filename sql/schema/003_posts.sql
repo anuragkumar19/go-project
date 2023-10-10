@@ -11,7 +11,7 @@ CREATE TABLE posts (
     created_at TIMESTAMP DEFAULT current_timestamp NOT NULL,
     updated_at TIMESTAMP DEFAULT current_timestamp NOT NULL,
     CONSTRAINT creator FOREIGN KEY(creator_id) REFERENCES users(id),
-    CONSTRAINT subreddit FOREIGN KEY(subreddit_id) REFERENCES subreddit(id)
+    CONSTRAINT subreddit FOREIGN KEY(subreddit_id) REFERENCES subreddit(id) ON DELETE CASCADE
 );
 
 -- +goose Down
