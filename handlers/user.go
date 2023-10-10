@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"net/http"
+	"strconv"
 
 	database "example.com/go-htmx/db"
 	"example.com/go-htmx/utils"
@@ -13,6 +14,78 @@ import (
 func Me(user *database.GetUserByIdRow, c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
+
+func GetUserByID(c *gin.Context) {
+	str, ok := c.Params.Get("id")
+
+	if !ok {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "User not found",
+		})
+
+		return
+	}
+
+	id, err := strconv.Atoi(str)
+
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "User not found",
+		})
+
+		return
+	}
+
+	users, err := db.GetUserByIDPublic(context.Background(), int32(id))
+
+	if err != nil {
+		panic(err)
+	}
+
+	if len(users) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "User not found",
+		})
+
+		return
+	}
+
+	user := users[0]
+	c.JSON(http.StatusOK, gin.H{"user": user})
+}
+
+func GetUserByUsername(c *gin.Context) {
+	username, ok := c.Params.Get("username")
+
+	if !ok {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "User not found",
+		})
+
+		return
+	}
+
+	users, err := db.GetUserByUsernamePublic(context.Background(), username)
+
+	if err != nil {
+		panic(err)
+	}
+
+	if len(users) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "User not found",
+		})
+
+		return
+	}
+
+	user := users[0]
+	c.JSON(http.StatusOK, gin.H{"user": user})
+}
+
+func GetUserPosts(c *gin.Context)   {}
+func GetUserReplies(c *gin.Context) {}
+func SearchUser(c *gin.Context)     {}
 
 func UpdateName(user *database.GetUserByIdRow, c *gin.Context) {
 	body := &validations.UpdateNameParameters{}

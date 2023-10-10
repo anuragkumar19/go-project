@@ -11,6 +11,44 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func GetReply(c *gin.Context) {
+	str, ok := c.Params.Get("id")
+
+	if !ok {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "Reply not found",
+		})
+		return
+	}
+
+	id, err := strconv.Atoi(str)
+
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "Reply not found",
+		})
+		return
+	}
+
+	replies, err := db.GetReplyByIdPublic(context.Background(), int32(id))
+
+	if err != nil {
+		panic(err)
+	}
+
+	if len(replies) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "Reply not found",
+		})
+		return
+	}
+
+	reply := replies[0]
+	c.JSON(http.StatusOK, gin.H{"reply": reply})
+}
+
+func GetReplyReplies(c *gin.Context) {}
+
 func ReplyToPost(user *database.GetUserByIdRow, c *gin.Context) {
 	body := &validations.ReplyParameters{}
 

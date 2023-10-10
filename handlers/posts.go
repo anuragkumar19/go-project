@@ -11,6 +11,44 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func GetPost(c *gin.Context) {
+	str, ok := c.Params.Get("id")
+
+	if !ok {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "Post not found",
+		})
+		return
+	}
+
+	id, err := strconv.Atoi(str)
+
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "Post not found",
+		})
+		return
+	}
+
+	posts, err := db.GetPostByIDPublic(context.Background(), int32(id))
+
+	if err != nil {
+		panic(err)
+	}
+
+	if len(posts) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "Post not found",
+		})
+		return
+	}
+
+	post := posts[0]
+	c.JSON(http.StatusOK, gin.H{"post": post})
+}
+
+func GetPostReplies(c *gin.Context) {}
+
 func CreatePostWithText(user *database.GetUserByIdRow, c *gin.Context) {
 	body := &validations.CreatePostWithTextParameters{}
 

@@ -281,6 +281,14 @@ func ForgotPassword(c *gin.Context) {
 		panic(err)
 	}
 
+	go func() {
+		err = emails.SendOTP(otp, body.Email)
+
+		if err != nil {
+			panic(err)
+		}
+	}()
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "OTP sent. Now you can reset your password",
 	})
@@ -361,6 +369,6 @@ func ResetPassword(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":"Password Updated",
+		"message": "Password Updated",
 	})
 }

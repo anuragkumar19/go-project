@@ -7,6 +7,7 @@ package database
 
 import (
 	"context"
+	"time"
 )
 
 const createPost = `-- name: CreatePost :many
@@ -92,6 +93,98 @@ func (q *Queries) FindPostById(ctx context.Context, id int32) ([]FindPostByIdRow
 	return items, nil
 }
 
+const getPostByIDPublic = `-- name: GetPostByIDPublic :many
+SELECT
+    posts.id,
+    posts.title,
+    posts.text,
+    posts.image,
+    posts.video,
+    posts.link,
+    posts.subreddit_id,
+    posts.creator_id,
+    posts.created_at,
+    users.username AS creator_username,
+    users.avatar AS creator_avatar,
+    users.name AS creator_name,
+    subreddit.name AS subreddit_name,
+    subreddit.avatar AS subreddit_avatar,
+    subreddit.is_verified AS subreddit_is_verified,
+    subreddit.title AS subreddit_title,
+    count(replies.id) AS replies_count
+FROM
+    posts
+JOIN
+    users ON posts.creator_id = users.id
+JOIN
+    subreddit ON posts.subreddit_id = subreddit.id
+JOIN
+    replies ON posts.id = replies.post_id
+WHERE
+    posts.id = $1
+`
+
+type GetPostByIDPublicRow struct {
+	ID                  int32     `json:"id"`
+	Title               string    `json:"title"`
+	Text                string    `json:"text"`
+	Image               string    `json:"image"`
+	Video               string    `json:"video"`
+	Link                string    `json:"link"`
+	SubredditID         int32     `json:"subreddit_id"`
+	CreatorID           int32     `json:"creator_id"`
+	CreatedAt           time.Time `json:"created_at"`
+	CreatorUsername     string    `json:"creator_username"`
+	CreatorAvatar       string    `json:"creator_avatar"`
+	CreatorName         string    `json:"creator_name"`
+	SubredditName       string    `json:"subreddit_name"`
+	SubredditAvatar     string    `json:"subreddit_avatar"`
+	SubredditIsVerified bool      `json:"subreddit_is_verified"`
+	SubredditTitle      string    `json:"subreddit_title"`
+	RepliesCount        int64     `json:"replies_count"`
+}
+
+func (q *Queries) GetPostByIDPublic(ctx context.Context, id int32) ([]GetPostByIDPublicRow, error) {
+	rows, err := q.db.QueryContext(ctx, getPostByIDPublic, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetPostByIDPublicRow
+	for rows.Next() {
+		var i GetPostByIDPublicRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Text,
+			&i.Image,
+			&i.Video,
+			&i.Link,
+			&i.SubredditID,
+			&i.CreatorID,
+			&i.CreatedAt,
+			&i.CreatorUsername,
+			&i.CreatorAvatar,
+			&i.CreatorName,
+			&i.SubredditName,
+			&i.SubredditAvatar,
+			&i.SubredditIsVerified,
+			&i.SubredditTitle,
+			&i.RepliesCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getPostVote = `-- name: GetPostVote :many
 SELECT post_id, user_id, down FROM vote_post
 WHERE post_id = $1 AND user_id = $2
@@ -149,7 +242,7 @@ func (q *Queries) RemovePostVote(ctx context.Context, arg RemovePostVoteParams) 
 const votePost = `-- name: VotePost :exec
 INSERT INTO vote_post (post_id, user_id, down)
 VALUES ($1, $2, $3)
-ON CONFLICT
+ON CONFLICT (post_id, user_id)
 DO UPDATE SET down = $3
 WHERE vote_post.post_id = $1 AND vote_post.user_id = $2
 `

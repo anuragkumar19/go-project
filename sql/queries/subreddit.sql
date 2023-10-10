@@ -50,3 +50,11 @@ RETURNING user_id,subreddit_id;
 -- name: LeaveSubreddit :exec
 DELETE FROM user_subreddit_join 
 WHERE user_id = $1 AND subreddit_id = $2;
+
+-- name: FindSubredditByIDPublic :many
+SELECT id, name, about, title, avatar, cover, is_verified, created_at, creator_id FROM subreddit 
+WHERE id = $1;
+
+-- name: FindSubredditByNamePublic :many
+SELECT id, name, about, title, avatar, cover, is_verified, created_at, creator_id FROM subreddit 
+WHERE name = $1;

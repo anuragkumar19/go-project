@@ -11,6 +11,57 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func SearchSubreddit(c *gin.Context) {}
+func GetSubredditByID(c *gin.Context) {
+	str, ok := c.Params.Get("id")
+
+	if !ok {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "Subreddit not found",
+		})
+		return
+	}
+
+	id, err := strconv.Atoi(str)
+
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "Subreddit not found",
+		})
+		return
+	}
+
+	items, err := db.FindSubredditByIDPublic(context.Background(), int32(id))
+
+	if err != nil {
+		panic(err)
+	}
+
+	subreddit := items[0]
+	c.JSON(http.StatusOK, gin.H{"subreddit": subreddit})
+}
+
+func GetSubredditByName(c *gin.Context) {
+	name, ok := c.Params.Get("name")
+
+	if !ok {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "Subreddit not found",
+		})
+		return
+	}
+
+	items, err := db.FindSubredditByNamePublic(context.Background(), name)
+
+	if err != nil {
+		panic(err)
+	}
+
+	subreddit := items[0]
+	c.JSON(http.StatusOK, gin.H{"subreddit": subreddit})
+}
+func GetSubredditPosts(c *gin.Context) {}
+
 func CreateSubreddit(user *database.GetUserByIdRow, c *gin.Context) {
 	body := &validations.CreateSubredditParameters{}
 

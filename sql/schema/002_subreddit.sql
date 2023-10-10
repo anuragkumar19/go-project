@@ -10,7 +10,6 @@ CREATE TABLE subreddit (
     creator_id INT NOT NULL,
     created_at TIMESTAMP DEFAULT current_timestamp NOT NULL,
     updated_at TIMESTAMP DEFAULT current_timestamp NOT NULL,
-
     CONSTRAINT creator FOREIGN KEY(creator_id) REFERENCES users(id)
 );
 

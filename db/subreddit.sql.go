@@ -7,6 +7,7 @@ package database
 
 import (
 	"context"
+	"time"
 )
 
 const createSubreddit = `-- name: CreateSubreddit :many
@@ -38,6 +39,56 @@ func (q *Queries) CreateSubreddit(ctx context.Context, arg CreateSubredditParams
 	for rows.Next() {
 		var i CreateSubredditRow
 		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const findSubredditByIDPublic = `-- name: FindSubredditByIDPublic :many
+SELECT id, name, about, title, avatar, cover, is_verified, created_at, creator_id FROM subreddit 
+WHERE id = $1
+`
+
+type FindSubredditByIDPublicRow struct {
+	ID         int32     `json:"id"`
+	Name       string    `json:"name"`
+	About      string    `json:"about"`
+	Title      string    `json:"title"`
+	Avatar     string    `json:"avatar"`
+	Cover      string    `json:"cover"`
+	IsVerified bool      `json:"is_verified"`
+	CreatedAt  time.Time `json:"created_at"`
+	CreatorID  int32     `json:"creator_id"`
+}
+
+func (q *Queries) FindSubredditByIDPublic(ctx context.Context, id int32) ([]FindSubredditByIDPublicRow, error) {
+	rows, err := q.db.QueryContext(ctx, findSubredditByIDPublic, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FindSubredditByIDPublicRow
+	for rows.Next() {
+		var i FindSubredditByIDPublicRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.About,
+			&i.Title,
+			&i.Avatar,
+			&i.Cover,
+			&i.IsVerified,
+			&i.CreatedAt,
+			&i.CreatorID,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -102,6 +153,56 @@ func (q *Queries) FindSubredditByName(ctx context.Context, name string) ([]int32
 			return nil, err
 		}
 		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const findSubredditByNamePublic = `-- name: FindSubredditByNamePublic :many
+SELECT id, name, about, title, avatar, cover, is_verified, created_at, creator_id FROM subreddit 
+WHERE name = $1
+`
+
+type FindSubredditByNamePublicRow struct {
+	ID         int32     `json:"id"`
+	Name       string    `json:"name"`
+	About      string    `json:"about"`
+	Title      string    `json:"title"`
+	Avatar     string    `json:"avatar"`
+	Cover      string    `json:"cover"`
+	IsVerified bool      `json:"is_verified"`
+	CreatedAt  time.Time `json:"created_at"`
+	CreatorID  int32     `json:"creator_id"`
+}
+
+func (q *Queries) FindSubredditByNamePublic(ctx context.Context, name string) ([]FindSubredditByNamePublicRow, error) {
+	rows, err := q.db.QueryContext(ctx, findSubredditByNamePublic, name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FindSubredditByNamePublicRow
+	for rows.Next() {
+		var i FindSubredditByNamePublicRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.About,
+			&i.Title,
+			&i.Avatar,
+			&i.Cover,
+			&i.IsVerified,
+			&i.CreatedAt,
+			&i.CreatorID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err

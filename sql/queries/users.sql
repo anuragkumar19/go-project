@@ -74,3 +74,11 @@ OR username = $1;
 SELECT id, name, username, email, is_email_verified, created_at, updated_at
 FROM users
 WHERE id = $1;
+
+-- name: GetUserByUsernamePublic :many
+SELECT id, name, username, avatar, created_at FROM users
+WHERE username = $1;
+
+-- name: GetUserByIDPublic :many
+SELECT id, name, username, avatar, created_at FROM users
+WHERE id = $1;

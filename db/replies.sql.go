@@ -99,6 +99,75 @@ func (q *Queries) FindReplyById(ctx context.Context, id int32) ([]FindReplyByIdR
 	return items, nil
 }
 
+const getReplyByIdPublic = `-- name: GetReplyByIdPublic :many
+SELECT
+    replies.id,
+    replies.content,
+    replies.creator_id,
+    replies.created_at,
+    replies.post_id,
+    replies.parent_reply_id,
+    users.username AS creator_username,
+    users.avatar AS creator_avatar,
+    users.name AS creator_name,
+    COUNT(r.id) AS replies_count
+FROM
+    replies
+JOIN
+    users ON replies.creator_id = users.id
+JOIN 
+    replies AS r on r.parent_reply_id = replies.id
+WHERE
+    replies.id = $1
+`
+
+type GetReplyByIdPublicRow struct {
+	ID              int32         `json:"id"`
+	Content         string        `json:"content"`
+	CreatorID       int32         `json:"creator_id"`
+	CreatedAt       sql.NullTime  `json:"created_at"`
+	PostID          sql.NullInt32 `json:"post_id"`
+	ParentReplyID   sql.NullInt32 `json:"parent_reply_id"`
+	CreatorUsername string        `json:"creator_username"`
+	CreatorAvatar   string        `json:"creator_avatar"`
+	CreatorName     string        `json:"creator_name"`
+	RepliesCount    int64         `json:"replies_count"`
+}
+
+func (q *Queries) GetReplyByIdPublic(ctx context.Context, id int32) ([]GetReplyByIdPublicRow, error) {
+	rows, err := q.db.QueryContext(ctx, getReplyByIdPublic, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetReplyByIdPublicRow
+	for rows.Next() {
+		var i GetReplyByIdPublicRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Content,
+			&i.CreatorID,
+			&i.CreatedAt,
+			&i.PostID,
+			&i.ParentReplyID,
+			&i.CreatorUsername,
+			&i.CreatorAvatar,
+			&i.CreatorName,
+			&i.RepliesCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getReplyVote = `-- name: GetReplyVote :many
 SELECT reply_id, user_id, down FROM vote_reply
 WHERE reply_id = $1 AND user_id = $2
@@ -156,7 +225,7 @@ func (q *Queries) RemoveReplyVote(ctx context.Context, arg RemoveReplyVoteParams
 const voteReply = `-- name: VoteReply :exec
 INSERT INTO vote_reply (reply_id, user_id, down)
 VALUES ($1, $2, $3)
-ON CONFLICT
+ON CONFLICT (reply_id, user_id)
 DO UPDATE SET down = $3
 WHERE vote_reply.reply_id = $1 AND vote_reply.user_id = $2
 `

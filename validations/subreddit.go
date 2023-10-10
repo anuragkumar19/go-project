@@ -1,7 +1,7 @@
 package validations
 
 type CreateSubredditParameters struct {
-	Name string `json:"subreddit" validate:"required,min=3,max=30,alphanum" mod:"trim"`
+	Name string `json:"name" validate:"required,min=3,max=30,alphanum" mod:"trim"`
 }
 
 type UpdateSubredditTitleParameters struct {

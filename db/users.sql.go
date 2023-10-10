@@ -173,6 +173,48 @@ func (q *Queries) ForgotPassword(ctx context.Context, arg ForgotPasswordParams) 
 	return items, nil
 }
 
+const getUserByIDPublic = `-- name: GetUserByIDPublic :many
+SELECT id, name, username, avatar, created_at FROM users
+WHERE id = $1
+`
+
+type GetUserByIDPublicRow struct {
+	ID        int32     `json:"id"`
+	Name      string    `json:"name"`
+	Username  string    `json:"username"`
+	Avatar    string    `json:"avatar"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (q *Queries) GetUserByIDPublic(ctx context.Context, id int32) ([]GetUserByIDPublicRow, error) {
+	rows, err := q.db.QueryContext(ctx, getUserByIDPublic, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetUserByIDPublicRow
+	for rows.Next() {
+		var i GetUserByIDPublicRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Username,
+			&i.Avatar,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getUserById = `-- name: GetUserById :many
 SELECT id, name, username, email, is_email_verified, created_at, updated_at
 FROM users
@@ -206,6 +248,48 @@ func (q *Queries) GetUserById(ctx context.Context, id int32) ([]GetUserByIdRow, 
 			&i.IsEmailVerified,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getUserByUsernamePublic = `-- name: GetUserByUsernamePublic :many
+SELECT id, name, username, avatar, created_at FROM users
+WHERE username = $1
+`
+
+type GetUserByUsernamePublicRow struct {
+	ID        int32     `json:"id"`
+	Name      string    `json:"name"`
+	Username  string    `json:"username"`
+	Avatar    string    `json:"avatar"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (q *Queries) GetUserByUsernamePublic(ctx context.Context, username string) ([]GetUserByUsernamePublicRow, error) {
+	rows, err := q.db.QueryContext(ctx, getUserByUsernamePublic, username)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetUserByUsernamePublicRow
+	for rows.Next() {
+		var i GetUserByUsernamePublicRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Username,
+			&i.Avatar,
+			&i.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
