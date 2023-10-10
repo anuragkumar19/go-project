@@ -83,9 +83,60 @@ func GetUserByUsername(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"user": user})
 }
 
-func GetUserPosts(c *gin.Context)   {}
-func GetUserReplies(c *gin.Context) {}
-func SearchUser(c *gin.Context)     {}
+func GetUserPosts(c *gin.Context) {
+	str, ok := c.Params.Get("id")
+
+	if !ok {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "User not found",
+		})
+
+		return
+	}
+
+	id, err := strconv.Atoi(str)
+
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "User not found",
+		})
+
+		return
+	}
+
+	limit, _ := strconv.Atoi(c.Query("limit"))
+	page, _ := strconv.Atoi(c.Query("page"))
+
+	if limit == 0 {
+		limit = 10
+	}
+
+	if page == 0 {
+		page = 1
+	}
+
+	posts, err := db.GetPostsOfUser(context.Background(), database.GetPostsOfUserParams{
+		CreatorID: int32(id),
+		Limit:     int32(limit),
+		Offset:    (int32(page) - 1) * int32(limit),
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"posts": posts,
+	})
+}
+
+func GetUserReplies(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{"message": "Not implemented"})
+}
+
+func SearchUser(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{"message": "Not implemented"})
+}
 
 func UpdateName(user *database.GetUserByIdRow, c *gin.Context) {
 	body := &validations.UpdateNameParameters{}

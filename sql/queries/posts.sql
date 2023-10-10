@@ -42,7 +42,9 @@ SELECT
     subreddit.avatar AS subreddit_avatar,
     subreddit.is_verified AS subreddit_is_verified,
     subreddit.title AS subreddit_title,
-    count(replies.id) AS replies_count
+    count(replies.id) AS replies_count,
+    count(up_vote.user_id) AS up_vote_count,
+    count(down_vote.user.id) AS down_vote_count
 FROM
     posts
 JOIN
@@ -51,5 +53,52 @@ JOIN
     subreddit ON posts.subreddit_id = subreddit.id
 JOIN
     replies ON posts.id = replies.post_id
+JOIN 
+    vote_post AS up_vote ON posts.id = up_vote.post_id AND up_vote.down = FALSE
+JOIN 
+    vote_post AS down_vote ON posts.id = down_vote.post_id AND down_vote.down = TRUE
 WHERE
     posts.id = $1;
+
+
+-- name: GetPostsOfUser :many
+SELECT
+    posts.id,
+    posts.title,
+    posts.text,
+    posts.image,
+    posts.video,
+    posts.link,
+    posts.subreddit_id,
+    posts.creator_id,
+    posts.created_at,
+    users.username AS creator_username,
+    users.avatar AS creator_avatar,
+    users.name AS creator_name,
+    subreddit.name AS subreddit_name,
+    subreddit.avatar AS subreddit_avatar,
+    subreddit.is_verified AS subreddit_is_verified,
+    subreddit.title AS subreddit_title,
+    count(replies.id) AS replies_count,
+    count(up_vote.user_id) AS up_vote_count,
+    count(down_vote.user.id) AS down_vote_count
+FROM
+    posts
+JOIN
+    users ON posts.creator_id = users.id
+JOIN
+    subreddit ON posts.subreddit_id = subreddit.id
+JOIN
+    replies ON posts.id = replies.post_id
+JOIN 
+    vote_post AS up_vote ON posts.id = up_vote.post_id AND up_vote.down = FALSE
+JOIN 
+    vote_post AS down_vote ON posts.id = down_vote.post_id AND down_vote.down = TRUE
+WHERE
+    posts.creator_id = $1
+ORDER BY
+    posts.created_at DESC
+LIMIT
+    $2
+OFFSET
+    $3;

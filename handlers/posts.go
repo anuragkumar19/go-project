@@ -47,7 +47,9 @@ func GetPost(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"post": post})
 }
 
-func GetPostReplies(c *gin.Context) {}
+func GetPostReplies(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{"message": "Not implemented"})
+}
 
 func CreatePostWithText(user *database.GetUserByIdRow, c *gin.Context) {
 	body := &validations.CreatePostWithTextParameters{}
@@ -246,7 +248,7 @@ func RemovePostVote(user *database.GetUserByIdRow, c *gin.Context) {
 
 // TODO: after implementation of comments and upVote & downVote
 func DeletePost(user *database.GetUserByIdRow, c *gin.Context) {
-
+	c.JSON(http.StatusNotImplemented, gin.H{"message": "Not implemented"})
 }
 
 func verifyPostCreator(user *database.GetUserByIdRow, c *gin.Context, checkCreator bool) (*database.FindPostByIdRow, bool) {

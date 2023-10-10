@@ -110,13 +110,19 @@ SELECT
     users.username AS creator_username,
     users.avatar AS creator_avatar,
     users.name AS creator_name,
-    COUNT(r.id) AS replies_count
+    COUNT(r.id) AS replies_count,
+    COUNT(up_vote.user_id) AS up_vote_count,
+    COUNT(down_vote.user.id) AS down_vote_count
 FROM
     replies
 JOIN
     users ON replies.creator_id = users.id
 JOIN 
     replies AS r on r.parent_reply_id = replies.id
+JOIN 
+    vote_reply AS up_vote ON replies.id = up_vote.reply_id AND up_vote.down = FALSE
+JOIN 
+    vote_reply AS down_vote ON replies.id = down_vote.reply_id AND down_vote.down = TRUE
 WHERE
     replies.id = $1
 `
@@ -132,6 +138,8 @@ type GetReplyByIdPublicRow struct {
 	CreatorAvatar   string        `json:"creator_avatar"`
 	CreatorName     string        `json:"creator_name"`
 	RepliesCount    int64         `json:"replies_count"`
+	UpVoteCount     int64         `json:"up_vote_count"`
+	DownVoteCount   int64         `json:"down_vote_count"`
 }
 
 func (q *Queries) GetReplyByIdPublic(ctx context.Context, id int32) ([]GetReplyByIdPublicRow, error) {
@@ -154,6 +162,8 @@ func (q *Queries) GetReplyByIdPublic(ctx context.Context, id int32) ([]GetReplyB
 			&i.CreatorAvatar,
 			&i.CreatorName,
 			&i.RepliesCount,
+			&i.UpVoteCount,
+			&i.DownVoteCount,
 		); err != nil {
 			return nil, err
 		}

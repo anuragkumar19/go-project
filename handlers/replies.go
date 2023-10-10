@@ -47,7 +47,9 @@ func GetReply(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"reply": reply})
 }
 
-func GetReplyReplies(c *gin.Context) {}
+func GetReplyReplies(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{"message": "Not implemented"})
+}
 
 func ReplyToPost(user *database.GetUserByIdRow, c *gin.Context) {
 	body := &validations.ReplyParameters{}
@@ -182,7 +184,9 @@ func RemoveReplyVote(user *database.GetUserByIdRow, c *gin.Context) {
 }
 
 // TODO:...
-func DeleteReply(user *database.GetUserByIdRow, c *gin.Context) {}
+func DeleteReply(user *database.GetUserByIdRow, c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{"message": "Not implemented"})
+}
 
 func verifyReplyCreator(user *database.GetUserByIdRow, c *gin.Context, checkCreator bool) (*database.FindReplyByIdRow, bool) {
 	s, ok := c.Params.Get("id")

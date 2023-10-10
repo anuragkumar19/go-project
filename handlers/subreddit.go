@@ -11,7 +11,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SearchSubreddit(c *gin.Context) {}
+func SearchSubreddit(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{"message": "Not implemented"})
+}
 func GetSubredditByID(c *gin.Context) {
 	str, ok := c.Params.Get("id")
 
@@ -60,7 +62,9 @@ func GetSubredditByName(c *gin.Context) {
 	subreddit := items[0]
 	c.JSON(http.StatusOK, gin.H{"subreddit": subreddit})
 }
-func GetSubredditPosts(c *gin.Context) {}
+func GetSubredditPosts(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{"message": "Not implemented"})
+}
 
 func CreateSubreddit(user *database.GetUserByIdRow, c *gin.Context) {
 	body := &validations.CreateSubredditParameters{}
@@ -319,4 +323,8 @@ func LeaveSubreddit(user *database.GetUserByIdRow, c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Left",
 	})
+}
+
+func DeleteSubreddit(user *database.GetUserByIdRow, c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{"message": "Not implemented"})
 }
