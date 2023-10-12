@@ -216,7 +216,7 @@ func (q *Queries) GetUserByIDPublic(ctx context.Context, id int32) ([]GetUserByI
 }
 
 const getUserById = `-- name: GetUserById :many
-SELECT id, name, username, email, is_email_verified, created_at, updated_at
+SELECT id, name, username, email, is_email_verified, avatar, created_at, updated_at
 FROM users
 WHERE id = $1
 `
@@ -227,6 +227,7 @@ type GetUserByIdRow struct {
 	Username        string    `json:"username"`
 	Email           string    `json:"email"`
 	IsEmailVerified bool      `json:"is_email_verified"`
+	Avatar          string    `json:"avatar"`
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 }
@@ -246,6 +247,7 @@ func (q *Queries) GetUserById(ctx context.Context, id int32) ([]GetUserByIdRow, 
 			&i.Username,
 			&i.Email,
 			&i.IsEmailVerified,
+			&i.Avatar,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {

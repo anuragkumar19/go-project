@@ -71,7 +71,7 @@ WHERE email = $1
 OR username = $1;
 
 -- name: GetUserById :many
-SELECT id, name, username, email, is_email_verified, created_at, updated_at
+SELECT id, name, username, email, is_email_verified, avatar, created_at, updated_at
 FROM users
 WHERE id = $1;
 
