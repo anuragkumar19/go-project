@@ -314,6 +314,73 @@ func (q *Queries) GetJoinedSubreddit(ctx context.Context, userID int32) ([]int32
 	return items, nil
 }
 
+const getTopSubredditPublic = `-- name: GetTopSubredditPublic :many
+SELECT
+    subreddit.id,
+    subreddit.name,
+    subreddit.title,
+    subreddit.avatar,
+    subreddit.is_verified,
+    COALESCE(member.member_count, 0) AS member_count,
+    CASE
+        WHEN usj.user_id IS NOT NULL THEN true
+        ELSE false
+    END AS is_joined
+FROM
+    subreddit
+LEFT JOIN (
+    SELECT subreddit_id, COUNT(user_id) AS member_count
+    FROM user_subreddit_join
+    GROUP BY subreddit_id
+) AS member ON subreddit.id = member.subreddit_id
+LEFT JOIN user_subreddit_join AS usj ON subreddit.id = usj.subreddit_id AND usj.user_id = $1
+ORDER BY
+    member_count DESC
+LIMIT
+    10
+`
+
+type GetTopSubredditPublicRow struct {
+	ID          int32  `json:"id"`
+	Name        string `json:"name"`
+	Title       string `json:"title"`
+	Avatar      string `json:"avatar"`
+	IsVerified  bool   `json:"is_verified"`
+	MemberCount int64  `json:"member_count"`
+	IsJoined    bool   `json:"is_joined"`
+}
+
+func (q *Queries) GetTopSubredditPublic(ctx context.Context, userID int32) ([]GetTopSubredditPublicRow, error) {
+	rows, err := q.db.QueryContext(ctx, getTopSubredditPublic, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetTopSubredditPublicRow
+	for rows.Next() {
+		var i GetTopSubredditPublicRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Title,
+			&i.Avatar,
+			&i.IsVerified,
+			&i.MemberCount,
+			&i.IsJoined,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const isAlreadyJoined = `-- name: IsAlreadyJoined :many
 SELECT user_id, subreddit_id FROM user_subreddit_join 
 WHERE user_id = $1 AND subreddit_id = $2

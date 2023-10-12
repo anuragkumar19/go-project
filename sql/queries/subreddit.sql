@@ -135,6 +135,31 @@ LIMIT
 OFFSET
     $3;
 
+-- name: GetTopSubredditPublic :many
+SELECT
+    subreddit.id,
+    subreddit.name,
+    subreddit.title,
+    subreddit.avatar,
+    subreddit.is_verified,
+    COALESCE(member.member_count, 0) AS member_count,
+    CASE
+        WHEN usj.user_id IS NOT NULL THEN true
+        ELSE false
+    END AS is_joined
+FROM
+    subreddit
+LEFT JOIN (
+    SELECT subreddit_id, COUNT(user_id) AS member_count
+    FROM user_subreddit_join
+    GROUP BY subreddit_id
+) AS member ON subreddit.id = member.subreddit_id
+LEFT JOIN user_subreddit_join AS usj ON subreddit.id = usj.subreddit_id AND usj.user_id = $1
+ORDER BY
+    member_count DESC
+LIMIT
+    10;
+
 -- name: DeleteSubreddit :exec
 DELETE FROM subreddit WHERE id = $1;
 

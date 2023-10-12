@@ -12,4 +12,5 @@ func ApiRouter(r *gin.Engine) {
 	subredditRouter(api)
 	postRouter(api)
 	repliesRouter(api)
+	feedRouter(api)
 }
