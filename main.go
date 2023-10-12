@@ -16,10 +16,7 @@ import (
 func main() {
 	r := gin.Default()
 
-	r.Use(cors.New(cors.Config{
-		AllowAllOrigins: true,
-		AllowMethods:    []string{"GET", "POST", "PUT", "PATH", "DELETE", "OPTIONS"},
-	}))
+	r.Use(cors.Default())
 
 	r.Use(gin.CustomRecovery(func(c *gin.Context, err any) {
 		fmt.Println(err) // TODO: report err

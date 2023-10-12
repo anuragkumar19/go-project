@@ -3,7 +3,7 @@ CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
-    avatar TEXT UNIQUE DEFAULT 'https://api.dicebear.com/avatar.svg' NOT NULL,
+    avatar TEXT DEFAULT 'https://api.dicebear.com/avatar.svg' NOT NULL,
     is_email_verified BOOLEAN DEFAULT FALSE NOT NULL,
     otp INT,
     otp_expiry TIMESTAMP,
