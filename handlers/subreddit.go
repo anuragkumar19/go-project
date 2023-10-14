@@ -210,7 +210,7 @@ func CreateSubreddit(user *database.GetUserByIdRow, c *gin.Context) {
 	}
 
 	if len(items) > 0 {
-		c.JSON(http.StatusOK, gin.H{
+		c.JSON(http.StatusBadRequest, gin.H{
 			"message": "Subreddit not available",
 		})
 		return
