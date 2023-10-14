@@ -239,7 +239,7 @@ func GetJoinedSubreddit(user middlewares.MaybeUser, c *gin.Context) {
 		page = 1
 	}
 
-	items, err := db.GetJoinedSubreddit(context.Background(), int32(id))
+	items, err := db.GetUsersJoinedSubredditPublic(context.Background(), int32(id))
 
 	if err != nil {
 		panic(err)
