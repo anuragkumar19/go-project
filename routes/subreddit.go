@@ -18,6 +18,7 @@ func subredditRouter(r *gin.RouterGroup) {
 	subreddit.GET("/:id/posts", middlewares.WithMaybeUser(handlers.GetSubredditPosts))
 
 	subreddit.PUT("/:id/title", middlewares.WithAuthGuard(handlers.UpdateSubredditTitle))
+	subreddit.PUT("/:id/about", middlewares.WithAuthGuard(handlers.UpdateSubredditAbout))
 	subreddit.PUT("/:id/avatar", middlewares.WithAuthGuard(handlers.UpdateSubredditAvatar))
 	subreddit.PUT("/:id/cover", middlewares.WithAuthGuard(handlers.UpdateSubredditCover))
 	subreddit.POST("/:id/join", middlewares.WithAuthGuard(handlers.JoinSubreddit))

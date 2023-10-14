@@ -21,4 +21,5 @@ func userRouter(r *gin.RouterGroup) {
 	user.GET("/:id", handlers.GetUserByID)
 	user.GET("/:id/posts", middlewares.WithMaybeUser(handlers.GetUserPosts))
 	user.GET("/:id/replies", middlewares.WithMaybeUser(handlers.GetUserReplies))
+	user.GET("/:id/joined-subreddit", middlewares.WithMaybeUser(handlers.GetJoinedSubreddit))
 }

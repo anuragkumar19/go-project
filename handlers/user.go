@@ -207,6 +207,56 @@ func GetUserReplies(user middlewares.MaybeUser, c *gin.Context) {
 	})
 }
 
+func GetJoinedSubreddit(user middlewares.MaybeUser, c *gin.Context) {
+	str, ok := c.Params.Get("id")
+
+	if !ok {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "User not found",
+		})
+
+		return
+	}
+
+	id, err := strconv.Atoi(str)
+
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "User not found",
+		})
+
+		return
+	}
+
+	limit, _ := strconv.Atoi(c.Query("limit"))
+	page, _ := strconv.Atoi(c.Query("page"))
+
+	if limit == 0 {
+		limit = 10
+	}
+
+	if page == 0 {
+		page = 1
+	}
+
+	items, err := db.GetJoinedSubreddit(context.Background(), int32(id))
+
+	if err != nil {
+		panic(err)
+	}
+
+	if len(items) == 0 {
+		c.JSON(http.StatusOK, gin.H{
+			"items": []string{},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": items,
+	})
+}
+
 func SearchUser(c *gin.Context) {
 	q := c.Query("q")
 

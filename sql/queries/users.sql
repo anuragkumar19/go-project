@@ -89,3 +89,15 @@ WHERE is_email_verified = true AND (LOWER(username) LIKE $1 OR LOWER(name) LIKE 
 ORDER BY created_at DESC
 LIMIT $2
 OFFSET $3;
+
+-- name: GetUsersJoinedSubredditPublic :many
+SELECT 
+  usj.user_id, 
+  usj.subreddit_id, 
+  subreddit.name AS subreddit_name,
+  subreddit.title AS subreddit_title,
+  subreddit.avatar AS subreddit_avatar,
+  subreddit.is_verified AS subreddit_is_verified
+FROM user_subreddit_join AS usj
+LEFT JOIN subreddit ON usj.subreddit_id = subreddit.id
+WHERE usj.user_id = $1;

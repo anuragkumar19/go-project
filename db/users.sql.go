@@ -306,6 +306,58 @@ func (q *Queries) GetUserByUsernamePublic(ctx context.Context, username string) 
 	return items, nil
 }
 
+const getUsersJoinedSubredditPublic = `-- name: GetUsersJoinedSubredditPublic :many
+SELECT 
+  usj.user_id, 
+  usj.subreddit_id, 
+  subreddit.name AS subreddit_name,
+  subreddit.title AS subreddit_title,
+  subreddit.avatar AS subreddit_avatar,
+  subreddit.is_verified AS subreddit_is_verified
+FROM user_subreddit_join AS usj
+LEFT JOIN subreddit ON usj.subreddit_id = subreddit.id
+WHERE usj.user_id = $1
+`
+
+type GetUsersJoinedSubredditPublicRow struct {
+	UserID              int32          `json:"user_id"`
+	SubredditID         int32          `json:"subreddit_id"`
+	SubredditName       sql.NullString `json:"subreddit_name"`
+	SubredditTitle      sql.NullString `json:"subreddit_title"`
+	SubredditAvatar     sql.NullString `json:"subreddit_avatar"`
+	SubredditIsVerified sql.NullBool   `json:"subreddit_is_verified"`
+}
+
+func (q *Queries) GetUsersJoinedSubredditPublic(ctx context.Context, userID int32) ([]GetUsersJoinedSubredditPublicRow, error) {
+	rows, err := q.db.QueryContext(ctx, getUsersJoinedSubredditPublic, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetUsersJoinedSubredditPublicRow
+	for rows.Next() {
+		var i GetUsersJoinedSubredditPublicRow
+		if err := rows.Scan(
+			&i.UserID,
+			&i.SubredditID,
+			&i.SubredditName,
+			&i.SubredditTitle,
+			&i.SubredditAvatar,
+			&i.SubredditIsVerified,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const loginQuery = `-- name: LoginQuery :many
 SELECT id, password, email, is_email_verified, username
 FROM users
