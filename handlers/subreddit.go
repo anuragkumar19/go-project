@@ -191,6 +191,13 @@ func GetSubredditPosts(user middlewares.MaybeUser, c *gin.Context) {
 		panic(err)
 	}
 
+	if len(posts) == 0 {
+		c.JSON(http.StatusOK, gin.H{
+			"posts": []string{},
+		})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"posts": posts,
 	})
