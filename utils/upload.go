@@ -87,5 +87,5 @@ func UploadFile(c *gin.Context, filetype string) (url string, ok bool) {
 		panic(err)
 	}
 
-	return result.URL, true
+	return result.SecureURL, true
 }
